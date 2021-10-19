@@ -11,7 +11,7 @@ El objeto de este trabajo práctico es diseñar y construir un gestor de colas d
 
 ## 3. Requerimientos
 
-###3.1 Velocidades de producción y consumo diferente
+### 3.1 Velocidades de producción y consumo diferente
 
 La cola debe permitir que la producción y el consumo de mensajes ocurra a velocidades diferentes:   
 el productor podría generar mensajes más lentamente de lo que el consumidor los procesa, con lo que el consumidor debería quedar en espera no-activa hasta que haya un mensaje nuevo, o bien...
@@ -37,7 +37,7 @@ Los mensajes no deben ser almacenados una vez consumidos, para minimizar el cons
 ### 3.4 [Opcional] Transaccionalidad 
 
 Opcionalmente, los clientes podrán consumir los mensajes en dos modalidades: no transaccional y transaccional. 
-####3.4.1 Consumo no transaccional
+#### 3.4.1 Consumo no transaccional
 En este caso, un mensaje se considera consumido por un cliente en cuanto es entregado al mismo. 
 
 #### 3.4.2 Consumo transaccional

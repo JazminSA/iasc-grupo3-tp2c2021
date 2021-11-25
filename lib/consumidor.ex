@@ -2,7 +2,7 @@ defmodule Consumidor do
   defstruct [:id, :timestamp_logueo, tipo_consumo: :transaccional]
 
   def new(id) do
-    %Consumidor{id: id, timestamp_logueo: :os.system_time(:milli_seconds)}
+    %Consumidor{id: id}
   end
 
   def consumo_transaccional(consumidor) do

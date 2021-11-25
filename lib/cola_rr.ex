@@ -10,7 +10,6 @@ defmodule ColaRR do
 
   @impl true
   def handle_cast(:entregar_mensaje, {cola,[],indice}) do
-    # {:reply, "No se puede entregar mensajes, la cola no tiene consumidores", {cola,[],indice}}
     IO.puts "No se puede entregar mensajes, la cola no tiene consumidores" 
     {:noreply, {cola,[],indice}}
   end
@@ -19,14 +18,13 @@ defmodule ColaRR do
   def handle_cast(:entregar_mensaje, {{[], []},consumidores,indice}) do
     IO.puts "No se puede entregar mensajes, la cola no tiene mensajes"
     {:noreply, {{[], []},consumidores,indice}}
-    # {:reply, "No se puede entregar mensajes, la cola no tiene mensajes", {[],consumidores,indice}}
   end
 
   @impl true
   def handle_cast(:entregar_mensaje, {cola,consumidores,indice}) do
     {mensaje, cola} = tomar_mensaje(cola)
     consumidor = Enum.at(consumidores, indice)
-    enviar_mensaje_a(consumidor)
+    enviar_mensaje_a(mensaje, consumidor)
     {:noreply, {cola,consumidores,calcular_indice(length(consumidores), indice)}}
   end
   
@@ -38,12 +36,12 @@ defmodule ColaRR do
     0
   end
 
-  defp enviar_mensaje_a(%Consumidor{tipo_consumo: :transaccional} = consumidor) do
-    IO.puts "Se envio mensaje a #{consumidor.id} transaccional"
+  defp enviar_mensaje_a(mensaje, %Consumidor{tipo_consumo: :transaccional} = consumidor) do
+    IO.puts "Se envio mensaje #{mensaje.contenido} a #{consumidor.id} transaccional"
   end
 
-  defp enviar_mensaje_a(%Consumidor{tipo_consumo: :no_transaccional} = consumidor) do
-    IO.puts "Se envio mensaje a #{consumidor.id} no_transaccional"
+  defp enviar_mensaje_a(mensaje, %Consumidor{tipo_consumo: :no_transaccional} = consumidor) do
+    IO.puts "Se envio mensaje #{mensaje.contenido} a #{consumidor.id} no_transaccional"
   end
 
   defp tomar_mensaje(cola) do
@@ -57,12 +55,12 @@ defmodule ColaRR do
   end
 
   defp poner_mensaje_en_cola(elemento, cola) do
-    cola = :queue.in(elemento, cola)
+    cola = :queue.in(%{elemento|timestamp: :os.system_time(:milli_seconds)}, cola)
   end
 
   @impl true
   def handle_call({:suscribir_consumidor, consumidor}, _from, {cola,consumidores,nil}) do
-    {:reply, "Se Suscribio",{cola, consumidores ++ [consumidor],0}}
+    {:reply, "Se Suscribio",{cola, consumidores ++ [%{consumidor|timestamp_logueo: :os.system_time(:milli_seconds)}],0}}
   end
   @impl true
   def handle_call({:suscribir_consumidor, consumidor}, _from, {cola,consumidores,indice}) do

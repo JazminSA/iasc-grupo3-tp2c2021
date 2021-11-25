@@ -70,7 +70,8 @@ defmodule ColaRR do
   end
   @impl true
   def handle_call({:desuscribir_consumidor, consumidor}, _from, {cola,consumidores,indice}) do
-    {:reply, "Se de-suscribio", {cola, consumidores -- [consumidor],indice}}
+    nuevos_consumidores = consumidores -- [consumidor]
+    {:reply, "Se de-suscribio", {cola, nuevos_consumidores,calcular_indice(length(nuevos_consumidores), indice)}}
   end
   
 end

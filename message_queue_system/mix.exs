@@ -1,9 +1,9 @@
-defmodule MessageQueueManager.MixProject do
+defmodule MessageQueueSystem.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :message_queue_manager,
+      app: :message_queue_system,
       version: "0.1.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,

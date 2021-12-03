@@ -1,4 +1,4 @@
-defmodule DistributedMQApplication do
+defmodule MQApplication do
     use Application
 
     def start(_type, _args) do

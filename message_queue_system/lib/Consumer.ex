@@ -15,7 +15,7 @@ defmodule Consumer do
 
     def handle_cast({:subscribe, queue_id}, state) do
       Logger.info("Subscribing to #{queue_id}")
-      # QueueManager.subscribe(self(), queue_id)
+      QueueManager.subscribe(self(), queue_id)
       {:noreply, state}
     end
 

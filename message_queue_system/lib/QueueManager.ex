@@ -14,6 +14,7 @@ defmodule QueueManager do
 
     # Queues
     def handle_call(:create, _from, state) do
+      # TODO: Vincular con Colas
       {:reply, :ok, state}
     end
 
@@ -23,7 +24,8 @@ defmodule QueueManager do
 
     # Consumers
     def handle_cast({:subscribe, consumer_pid, queue_id}, state) do
-      Logger.info("subscribing #{inspect consumer_pid} to #{queue_id}")
+      Logger.info("QM: Register #{inspect consumer_pid} to #{queue_id}")
+      MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid)
       {:noreply, state}
     end
 

@@ -14,19 +14,19 @@ defmodule Consumer do
     end
 
     def handle_cast({:subscribe, queue_id}, state) do
-      Logger.info("Subscribing to #{queue_id}")
+      Logger.info("Consumer: Subscribing to #{queue_id}")
       QueueManager.subscribe(self(), queue_id)
       {:noreply, state}
     end
 
     def handle_cast({:unsubscribe, queue_id}, state) do
-      Logger.info("Unsubscribing from #{queue_id}")
+      Logger.info("Consumer: Unsubscribing from #{queue_id}")
       # QueueManager.subscribe(self(), queue_id)
       {:noreply, state}
     end
 
     def handle_call({:consume, message}, _from, state) do
-      Logger.info("recieved #{message}")
+      Logger.info("Consumer: Recieved #{message}")
       {:reply, :ok, state}
     end
 

@@ -34,7 +34,7 @@ defmodule MessageQueue do
     end
 
     def handle_cast({{:add_subscriber, consumer}, state}, _old_state) do
-        MessageQueueRegistry.register_queue_consumer("queueName?", consumer)
+        MessageQueueRegistry.subscribe_consumer("queueName?", consumer)
         {:noreply, state}
     end
 

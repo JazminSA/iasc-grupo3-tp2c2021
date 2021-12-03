@@ -25,12 +25,23 @@ defmodule QueueManager do
     # Consumers
     def handle_cast({:subscribe, consumer_pid, queue_id}, state) do
       Logger.info("QM: Register #{inspect consumer_pid} to #{queue_id}")
+      # Propagate subscription to all connected nodes
+      Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:subscribe, consumer_pid, queue_id}) end)
+
+      # Subscribe consumer
       MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid)
       {:noreply, state}
     end
 
     def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
       Logger.info("unsubscribing #{inspect consumer_pid} to #{queue_id}")
+
+      # Propagate subscription to all connected nodes
+      Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id}) end)
+
+      # Unsubscribe consumer from Registry
+      MessageQueueRegistry.unsubscribe_consumer(queue_id, consumer_pid)
+
       {:noreply, state}
     end
 

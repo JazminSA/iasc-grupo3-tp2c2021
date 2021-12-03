@@ -34,7 +34,7 @@ defmodule QueueManager do
     end
 
     def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
-      Logger.info("unsubscribing #{inspect consumer_pid} to #{queue_id}")
+      Logger.info("QM: Unsubscribing #{inspect consumer_pid} from #{queue_id}")
 
       # Propagate subscription to all connected nodes
       Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id}) end)

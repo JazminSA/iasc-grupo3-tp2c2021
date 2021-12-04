@@ -14,9 +14,9 @@ defmodule MessageQueueRegistry do
       Registry.start_link(keys: :duplicate, name: __MODULE__)
     end
   
-    def register_queue_consumer(queue, pid) do
+    def register_queue_consumer(queue, consumer) do
       # value pid should be added to list
-      Registry.register(__MODULE__, queue, pid)
+      Registry.register(__MODULE__, queue, %{consumer|timestamp_logueo: :os.system_time(:milli_seconds)})
     end
   
     def get_queue_consumers(queue) do

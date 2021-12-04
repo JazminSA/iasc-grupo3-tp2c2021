@@ -29,11 +29,16 @@ defmodule QueueManager do
     def handle_cast({:subscribe, consumer_pid, queue_id}, state) do
       Logger.info("QM: Register #{inspect consumer_pid} to #{queue_id}")
       # Propagate subscription to all connected nodes
-      Enum.each(Node.list(), fn node -> :erpc.cast(node, MessageQueueRegistry, :subscribe_consumer, [queue_id, consumer_pid]) end)
-      #Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:subscribe, consumer_pid, queue_id}) end)
+      # Enum.each(Node.list(), fn node -> :erpc.cast(node, MessageQueueRegistry, :subscribe_consumer, [queue_id, consumer_pid]) end)
+      Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:subscribe_replicate, consumer_pid, queue_id}) end)
 
       # Subscribe consumer
-      MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid)
+      do_subscribe(queue_id, consumer_pid)
+      {:noreply, state}
+    end
+
+    def handle_cast({:subscribe_replicate, consumer_pid, queue_id}, state) do
+      do_subscribe(queue_id, consumer_pid)
       {:noreply, state}
     end
 
@@ -47,6 +52,10 @@ defmodule QueueManager do
       MessageQueueRegistry.unsubscribe_consumer(queue_id, consumer_pid)
 
       {:noreply, state}
+    end
+
+    defp do_subscribe(queue_id, consumer_pid) do
+      MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid)
     end
 
     #---------------- Cliente ------------------#

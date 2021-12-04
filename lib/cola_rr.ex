@@ -64,7 +64,7 @@ defmodule ColaRR do
   end
   @impl true
   def handle_call({:suscribir_consumidor, consumidor}, _from, {cola,consumidores,indice}) do
-    {:reply, "Se Suscribio",{cola, consumidores ++ [consumidor],indice}}
+    {:reply, "Se Suscribio",{cola, consumidores ++ [%{consumidor|timestamp_logueo: :os.system_time(:milli_seconds)}],indice}}
   end
   @impl true
   def handle_call({:desuscribir_consumidor, consumidor}, _from, {cola,consumidores,indice}) do

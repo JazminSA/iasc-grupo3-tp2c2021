@@ -13,12 +13,15 @@ defmodule QueueManager do
     end
 
     # Queues
-    def handle_call(:create, _from, state) do
+    def handle_call({:create, queue_id}, _from, state) do
       # TODO: Vincular con Colas
+      MessageQueueDynamicSupervisor.start_child(queue_id, [])
       {:reply, :ok, state}
     end
 
     def handle_cast({:delete, queue_id}, state) do
+    #how to avoid supervisor to init again the queue?
+    #send message to terminate normally to the queue
       {:noreply, state}
     end
 
@@ -48,7 +51,7 @@ defmodule QueueManager do
     #---------------- Cliente ------------------#
 
     def create_queue(queue_id) do
-      GenServer.call(QueueManager, :create)
+      GenServer.call(QueueManager, {:create, queue_id})
     end
 
     def delete_queue(queue_id) do

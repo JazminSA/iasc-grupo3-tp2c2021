@@ -1,4 +1,5 @@
 defmodule MessageQueueRegistry do
+  require Logger
 
     def child_spec(opts) do
         %{
@@ -16,6 +17,7 @@ defmodule MessageQueueRegistry do
 
     def subscribe_consumer(queue, pid) do
       # value pid should be added to list
+      Logger.info("Registry: subscribing #{inspect pid} to #{queue}")
       Registry.register(__MODULE__, queue, pid)
     end
 

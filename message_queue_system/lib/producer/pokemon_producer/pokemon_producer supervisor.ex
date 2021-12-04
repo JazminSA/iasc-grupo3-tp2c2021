@@ -11,7 +11,10 @@ defmodule PokemonProducer.Supervisor do
 
   def init(pokemon_prod_state) do
     IO.puts "PokemonProducer Supervisor init"
-    childs = [{PokemonProducer, pokemon_prod_state}]
+    # PokemonProdAgent must be initiated before PokemonProducer
+    agent = {PokemonProdAgent, pokemon_prod_state}
+    producer = {PokemonProducer, []}
+    childs = [agent, producer]
     Supervisor.init(childs, strategy: :one_for_one)
   end
 end

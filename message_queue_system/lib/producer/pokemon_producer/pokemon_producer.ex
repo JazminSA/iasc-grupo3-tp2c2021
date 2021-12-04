@@ -9,7 +9,7 @@ defmodule PokemonProducer do
   def start_link(pokemon_prod_state) do
     IO.puts "Starting PokemonProducer"
     HTTPoison.start # Starting HTTP Client Process
-    start_result = GenServer.start_link(__MODULE__, pokemon_prod_state, name: __MODULE__)
+    start_result = GenServer.start_link(__MODULE__, PokemonProdAgent.get(), name: __MODULE__)
     GenServer.cast(__MODULE__, :prod)
     start_result #{:ok, pid}
   end
@@ -74,9 +74,10 @@ defmodule PokemonProducer do
   end
 
   defp state(new_subs_pids, new_mode) do
-    %PokemonProdState{subs_pids: new_subs_pids, prod_mode: new_mode}
+    new_state = %PokemonProdState{subs_pids: new_subs_pids, prod_mode: new_mode}
+    PokemonProdAgent.update(new_state)
+    PokemonProdAgent.get()
   end
-
   # id could be the pokemon name or number
   defp get_pokemon(id) do
     response = HTTPoison.get! "https://pokeapi.co/api/v2/pokemon/#{id}"

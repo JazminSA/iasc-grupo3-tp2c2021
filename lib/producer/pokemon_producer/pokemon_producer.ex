@@ -24,6 +24,13 @@ defmodule PokemonProducer do
     Enum.each(subscribers_pids, fn pid -> send(pid, get_pokemon(random_number())) end)
   end
 
+  # def call_queue_manager() do
+  #   {_, new_subs_pids} = GenServer.call(QueueManager, {:produce_to})
+  #   current_state = PokemonProdAgent.get()
+  #   subs_pids = Map.get(current_state, :subs_pids)
+  #   state(subs_pids ++ new_subs_pids, Map.get(current_state, :prod_mode))
+  # end
+
   defp random_number() do
     Enum.random(1..150)
   end
@@ -78,6 +85,7 @@ defmodule PokemonProducer do
     PokemonProdAgent.update(new_state)
     PokemonProdAgent.get()
   end
+
   # id could be the pokemon name or number
   defp get_pokemon(id) do
     response = HTTPoison.get! "https://pokeapi.co/api/v2/pokemon/#{id}"

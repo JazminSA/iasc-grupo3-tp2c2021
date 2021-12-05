@@ -19,6 +19,14 @@ defmodule QueueManager do
       {:reply, :ok, state}
     end
 
+    #Producer
+    def handle_call({:subs_prod,}, from, state) do
+      IO.puts "Subscribing new producer with pid #{from}"
+      # Save producer pid for unsubscribe if need
+      queue_pids = [] # <- Queue pids who will receive messages from producer
+      {:replay, queue_pids,state}
+    end
+
     def handle_call({:create, queue_id, type}, _from, state) do
       # TODO: Vincular con Colas
       {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])

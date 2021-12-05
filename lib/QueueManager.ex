@@ -53,12 +53,9 @@ defmodule QueueManager do
 
   # Consumers
   def handle_cast({:subscribe, consumer_pid, queue_id, mode}, state) do
-    #Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}")
-
-    # todo: get pid of the queue_name
+    #Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}"
 
     # Propagate subscription to all connected nodes
-    # Enum.each(Node.list(), fn node -> :erpc.cast(node, MessageQueueRegistry, :subscribe_consumer, [queue_id, consumer_pid]) end)
     Enum.each(Node.list(), fn node ->
       GenServer.cast({QueueManager, node}, {:subscribe_replicate, consumer_pid, queue_id, mode})
     end)
@@ -75,17 +72,26 @@ defmodule QueueManager do
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id, mode}, state) do
     #Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
+    # Unsubscribe consumer from Registry
+    ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
 
     # Propagate subscription to all connected nodes
     Enum.each(Node.list(), fn node ->
       GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, mode})
     end)
 
-    # Unsubscribe consumer from Registry
-    MessageQueueRegistry.unsubscribe_consumer(queue_id, consumer_pid)
-
     {:noreply, state}
   end
+
+
+    # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
+    defp do_subscribe(queue_id, consumer_pid, mode) do
+      ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
+      via_tuple = QueuesRegistry.get_pid(queue_id)
+
+      # TODO: Ejecutar esta linea solo si es el nodo activo
+      GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pid}})
+    end
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
   defp do_subscribe(queue_id, consumer_pid, mode) do

@@ -4,14 +4,15 @@ defmodule MessageQueue do
   # ---------------- Servidor ------------------#
 
   def start_link(name, state) do
-    #Logger.info("start_link #{name} #{inspect(state)}")
-    GenServer.start_link(__MODULE__, state, name: name)
+    GenServer.start_link(__MODULE__, state, name: process_name(name))
   end
 
   def child_spec({name, state}) do
-    #Logger.info("child_spec #{name} #{inspect(state)}")
     %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
   end
+
+  defp process_name(name),
+    do: {:via, Registry, {QueuesRegistry, name}}
 
   def init(state) do
     #Logger.info("Queue init #{inspect(state)}")
@@ -106,7 +107,7 @@ defmodule MessageQueue do
     Enum.each(consumers_list, fn c -> send_message(msg, c) end)
     update_remote_queues(:pop, msg)
     {:noreply, %{state | messages: queue}}
-    # consumers = MessageQueueRegistry.get_queue_consumers("queueName?")
+    # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
     # Enum.each(consumers, fn consumer -> send(message, consumer) end)
   end
 
@@ -245,7 +246,8 @@ defmodule MessageQueue do
     GenServer.call(pid, :get)
   end
 
-  def receive_message(pid, message) do
+  def receive_message(queue_id, message) do
+    pid = QueuesRegistry.get_pid(queue_id)
     GenServer.cast(pid, {:receive_message, message})
   end
 

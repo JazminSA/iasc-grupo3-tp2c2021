@@ -19,6 +19,14 @@ defmodule QueueManager do
       {:reply, :ok, state}
     end
 
+    #Producer
+    def handle_call({:subs_prod,}, from, state) do
+      IO.puts "Subscribing new producer with pid #{from}"
+      # Save producer pid for unsubscribe if need
+      queue_pids = [] # <- Queue pids who will receive messages from producer
+      {:replay, queue_pids,state}
+    end
+
     def handle_cast({:delete, queue_id}, state) do
     #how to avoid supervisor to init again the queue?
     #send message to terminate normally to the queue

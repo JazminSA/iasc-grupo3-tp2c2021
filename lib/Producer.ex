@@ -3,7 +3,7 @@ defmodule Producer do
   
     #---------------- Servidor ------------------#
   
-    def start_link(state)do
+    def start_link(state) do
       GenServer.start_link(__MODULE__, state, name: __MODULE__)
     end
   
@@ -11,14 +11,16 @@ defmodule Producer do
         {:ok, state}
     end
 
-    def handle_cast({:publish, state}, _old_state) do
+    def handle_cast({:publish, queue, message}, state) do
+      # pid = Process.whereis(queue)
+      MessageQueue.receive_message(queue, message)
       {:noreply, state}
     end
   
     #---------------- Cliente ------------------#
   
-    def publish() do
-        GenServer.cast(Producer, :publish)
+    def publish(queue, message) do
+        GenServer.cast(Producer, {:publish, queue, message})
     end
   
   end

@@ -11,22 +11,28 @@ defmodule MessageQueue do
     %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
   end
 
-  def init(state) when state == :round_robin do
-    # obtener estado actualizado de este proceso en alguna de las réplicas e inicializar con ese estado (libcluster genera la misma jerarquía)
-    # consultar con el registry de otro nodo (por ej. por nombre)
-    # consumers = [] #?
-    # MessageQueueRegistry.register_queue_consumer("queueName?", consumers)
-    {:ok, {:queue.new(), [], nil}}
-    # {:ok, state}
-  end
+  def init(state) do
+        #obtener estado actualizado de este proceso en alguna de las réplicas e inicializar con ese estado (libcluster genera la misma jerarquía)
+        #consultar con el registry de otro nodo (por ej. por nombre)
+        # consumers = [] #?
+        # MessageQueueRegistry.subscribe_consumer(name, consumers)
 
-  def init(state) when state == :pub_sub do
-    # obtener estado actualizado de este proceso en alguna de las réplicas e inicializar con ese estado (libcluster genera la misma jerarquía)
-    # consultar con el registry de otro nodo (por ej. por nombre)
-    # consumers = [] #?
-    # MessageQueueRegistry.register_queue_consumer("queueName?", consumers)
-    {:ok, {:queue.new(), []}}
-    # {:ok, state}
+        # 1- obtener mi propio Name
+        # 2- consultar por el Name, si existen messages + consumers en otros nodos para sincronizar
+        # 3- inicializar con nuevo estado
+
+        name = Map.get(state, :queueName)
+        type = Map.get(state, :type)
+        new_state = Map.put_new(state, :messages, :queue.new())
+        new_state = Map.put_new(new_state, :consumers, [])
+
+        cond do
+          type == :pub_sub -> 
+              {:ok, new_state}
+          type == :round_robin -> 
+              new_state = Map.put_new(new_state, :index, nil)
+              {:ok, new_state}
+        end
   end
 
   def handle_call(:get, _from, state) do

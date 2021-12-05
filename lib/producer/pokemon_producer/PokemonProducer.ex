@@ -19,25 +19,25 @@ defmodule PokemonProducer do
     {:ok, pokemon_prod_state}
   end
 
-  defp produce(subscribers_pids, mode) do
+  defp produce(queue_ids, mode) do
     Process.sleep(mode)
-    Enum.each(subscribers_pids, fn pid ->
-      GenServer.cast(pid, {:receive_message, get_pokemon(random_number())})
+    Enum.each(queue_ids, fn queue_id ->
+      GenServer.cast(QueuesRegistry.get_pid(queue_id), {:receive_message, get_pokemon(random_number())})
     end)
   end
 
-  def produce_request() do
-    {_, new_subs_pids} = GenServer.call(QueueManager, {:produce_to})
+  def publish() do
+    {_, new_queue_ids} = GenServer.call(QueueManager, :publish_to)
     current_state = PokemonProdAgent.get()
-    subs_pids = PokemonProdAgent.get_subs_pids()
-    update_and_get_state(subs_pids ++ new_subs_pids, PokemonProdAgent.get_prod_mode()))
+    queue_ids = PokemonProdAgent.get_queue_ids()
+    update_and_get_state(queue_ids ++ new_queue_ids, PokemonProdAgent.get_prod_mode())
   end
 
   defp random_number() do
     Enum.random(1..150)
   end
 
-  def subscribe(queue_pid) do
+  def subscribe(queue_pid) do # Para fines de prueba
     GenServer.cast(__MODULE__, {:subs, queue_pid})
   end
 
@@ -61,29 +61,29 @@ defmodule PokemonProducer do
     GenServer.cast(__MODULE__, {:custom_mode, ms})
   end
 
-  def handle_cast(message, %PokemonProdState{subs_pids: subscribers_pids, prod_mode: mode}) do
+  def handle_cast(message, %PokemonProdState{queue_ids: queue_ids, prod_mode: mode}) do
     case message do
       :prod ->
-        produce(subscribers_pids, mode)
+        produce(queue_ids, mode)
         GenServer.cast(__MODULE__, :prod)
-        {:noreply, update_and_get_state(subscribers_pids, mode)}
-      {:subs, queue_pid} ->
-        {:noreply, update_and_get_state([queue_pid | subscribers_pids], mode)}
-      {:unsubs, queue_pid} ->
-        {:noreply, update_and_get_state(List.delete(subscribers_pids, queue_pid), mode)}
+        {:noreply, update_and_get_state(queue_ids, mode)}
+      {:subs, queue_id} ->
+        {:noreply, update_and_get_state([queue_id | queue_ids], mode)}
+      {:unsubs, queue_id} ->
+        {:noreply, update_and_get_state(List.delete(queue_ids, queue_id), mode)}
       :normal_mode ->
-        {:noreply, update_and_get_state(subscribers_pids, @normal_mode_ms)}
+        {:noreply, update_and_get_state(queue_ids, @normal_mode_ms)}
       :slow_mode ->
-        {:noreply, update_and_get_state(subscribers_pids, @slow_mode_ms)}
+        {:noreply, update_and_get_state(queue_ids, @slow_mode_ms)}
       :fast_mode ->
-        {:noreply, update_and_get_state(subscribers_pids, @fast_mode_ms)}
+        {:noreply, update_and_get_state(queue_ids, @fast_mode_ms)}
       {:custom_mode, ms} ->
-        {:noreply, update_and_get_state(subscribers_pids, ms)}
+        {:noreply, update_and_get_state(queue_ids, ms)}
     end
   end
 
-  defp update_and_get_state(new_subs_pids, new_mode) do
-    PokemonProdAgent.update_and_get_state(new_subs_pids, new_mode)
+  defp update_and_get_state(new_queue_ids, new_mode) do
+    PokemonProdAgent.update_and_get_state(new_queue_ids, new_mode)
   end
 
   # id could be the pokemon name or number

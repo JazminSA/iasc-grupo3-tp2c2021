@@ -13,9 +13,9 @@ defmodule PokemonProdAgent do
     Agent.update(__MODULE__, fn _ -> new_state end)
   end
 
-  def get_subs_pids do
+  def get_queue_ids do
     state = PokemonProdAgent.get()
-    Map.get(state, :subs_pids)
+    Map.get(state, :queue_ids)
   end
 
   def get_prod_mode do
@@ -23,8 +23,8 @@ defmodule PokemonProdAgent do
     Map.get(state, :prod_mode)
   end
 
-  def update_and_get_state(new_subs_pids, new_mode) do
-    new_state = %PokemonProdState{subs_pids: new_subs_pids, prod_mode: new_mode}
+  def update_and_get_state(new_queue_ids, new_mode) do
+    new_state = %PokemonProdState{queue_ids: new_queue_ids, prod_mode: new_mode}
     PokemonProdAgent.update(new_state)
     PokemonProdAgent.get()
   end

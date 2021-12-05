@@ -3,9 +3,9 @@ defmodule PokemonProducer.Supervisor do
 
   @normal_mode_ms 5000
 
-  def start_link(subscribers_pids) do
+  def start_link(queue_ids) do
     IO.puts "Start PokemonProducer Supervisor"
-    state = %PokemonProdState{subs_pids: subscribers_pids, prod_mode: @normal_mode_ms}
+    state = %PokemonProdState{queue_ids: queue_ids, prod_mode: @normal_mode_ms}
     Supervisor.start_link(__MODULE__, state, name: __MODULE__)
   end
 

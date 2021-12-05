@@ -14,8 +14,8 @@ defmodule QueueManager do
 
   # Queues
   def handle_call(:get_queues, _from, state) do
-    # todo: how to get all distinct keys of MessageQueueRegistry?
-    # keys = Registry.keys(MessageQueueRegistry, self())
+    # todo: how to get all distinct keys of ConsumersRegistry?
+    # keys = Registry.keys(ConsumersRegistry, self())
     {:reply, :ok, state}
   end
 
@@ -95,7 +95,7 @@ defmodule QueueManager do
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
   defp do_subscribe(queue_id, consumer_pid, mode) do
-    MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
+    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
   end
 
   # ---------------- Cliente ------------------#

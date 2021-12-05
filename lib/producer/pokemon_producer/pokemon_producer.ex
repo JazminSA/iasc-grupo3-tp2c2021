@@ -33,7 +33,7 @@ defmodule PokemonProducer do
     {_, new_subs_pids} = GenServer.call(QueueManager, {:produce_to})
     current_state = PokemonProdAgent.get()
     subs_pids = PokemonProdAgent.get_subs_pids()
-    update_and_get_state(subs_pids ++ new_subs_pids, PokemonProdAgent.get_prod_mode()))
+    update_and_get_state(subs_pids ++ new_subs_pids, PokemonProdAgent.get_prod_mode())
   end
 
   defp random_number() do

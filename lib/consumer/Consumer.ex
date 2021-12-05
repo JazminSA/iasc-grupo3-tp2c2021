@@ -13,9 +13,9 @@ defmodule Consumer do
       {:ok, state}
     end
 
-    def handle_cast({:subscribe, queue_id}, state) do
+    def handle_cast({:subscribe, queue_id, mode}, state) do
       Logger.info("Consumer: Subscribing to #{queue_id}")
-      QueueManager.subscribe(self(), queue_id)
+      QueueManager.subscribe(self(), queue_id, mode)
       {:noreply, state}
     end
 
@@ -32,8 +32,8 @@ defmodule Consumer do
 
     #---------------- Cliente ------------------#
 
-    def subscribe(pid, queue_id) do
-        GenServer.cast(pid, {:subscribe, queue_id})
+    def subscribe(pid, queue_id, mode) do
+        GenServer.cast(pid, {:subscribe, queue_id, mode})
     end
 
     def unsubscribe(pid, queue_id) do

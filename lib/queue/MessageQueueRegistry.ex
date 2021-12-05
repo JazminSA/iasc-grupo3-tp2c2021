@@ -15,9 +15,9 @@ defmodule MessageQueueRegistry do
       Registry.start_link(keys: :duplicate, name: __MODULE__)
     end
 
-    def subscribe_consumer(queue, pid) do
-      # value pid should be added to list
-      Logger.info("Registry: subscribing #{inspect pid} to #{queue}")
+    def subscribe_consumer(queue, pid, mode) do
+      Logger.info("Registry: subscribing #{inspect pid} to #{queue} as #{mode}")
+      # todo: save in Agent the consumer mode (trans/notrans)
       Registry.register(__MODULE__, queue, pid)
     end
 

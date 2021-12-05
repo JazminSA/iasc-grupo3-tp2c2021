@@ -1,5 +1,6 @@
 defmodule PokemonProducer do
   use GenServer
+  require Logger
 
   # miliseconds producer waitness
   @normal_mode_ms 5000
@@ -7,22 +8,34 @@ defmodule PokemonProducer do
   @fast_mode_ms 1000
 
   def start_link(pokemon_prod_state) do
-    IO.puts "Starting PokemonProducer"
-    HTTPoison.start # Starting HTTP Client Process
+    IO.puts("Starting PokemonProducer")
+    # Starting HTTP Client Process
+    HTTPoison.start()
     start_result = GenServer.start_link(__MODULE__, PokemonProdAgent.get(), name: __MODULE__)
     GenServer.cast(__MODULE__, :prod)
-    start_result #{:ok, pid}
+    # {:ok, pid}
+    start_result
   end
 
   def init(pokemon_prod_state) do
-    IO.puts "Init PokemonProducer"
+    IO.puts("Init PokemonProducer")
     {:ok, pokemon_prod_state}
   end
 
   defp produce(subscribers_pids, mode) do
     Process.sleep(mode)
-    Enum.each(subscribers_pids, fn pid -> send(pid, get_pokemon(random_number())) end)
+
+    Enum.each(subscribers_pids, fn pid ->
+      GenServer.cast(pid, {:receive_message, get_pokemon(random_number())})
+    end)
   end
+
+  # def call_queue_manager() do
+  #   {_, new_subs_pids} = GenServer.call(QueueManager, {:produce_to})
+  #   current_state = PokemonProdAgent.get()
+  #   subs_pids = Map.get(current_state, :subs_pids)
+  #   state(subs_pids ++ new_subs_pids, Map.get(current_state, :prod_mode))
+  # end
 
   defp random_number() do
     Enum.random(1..150)
@@ -37,19 +50,19 @@ defmodule PokemonProducer do
   end
 
   def normal_mode() do
-     GenServer.cast(__MODULE__, :normal_mode)
+    GenServer.cast(__MODULE__, :normal_mode)
   end
 
   def slow_mode() do
-     GenServer.cast(__MODULE__, :slow_mode)
+    GenServer.cast(__MODULE__, :slow_mode)
   end
 
   def fast_mode() do
-     GenServer.cast(__MODULE__, :fast_mode)
+    GenServer.cast(__MODULE__, :fast_mode)
   end
 
   def custom_mode(ms) do
-     GenServer.cast(__MODULE__, {:custom_mode, ms})
+    GenServer.cast(__MODULE__, {:custom_mode, ms})
   end
 
   def handle_cast(message, %PokemonProdState{subs_pids: subscribers_pids, prod_mode: mode}) do
@@ -58,16 +71,22 @@ defmodule PokemonProducer do
         produce(subscribers_pids, mode)
         GenServer.cast(__MODULE__, :prod)
         {:noreply, state(subscribers_pids, mode)}
+
       {:subs, queue_pid} ->
         {:noreply, state([queue_pid | subscribers_pids], mode)}
+
       {:unsubs, queue_pid} ->
         {:noreply, state(List.delete(subscribers_pids, queue_pid), mode)}
+
       :normal_mode ->
         {:noreply, state(subscribers_pids, @normal_mode_ms)}
+
       :slow_mode ->
         {:noreply, state(subscribers_pids, @slow_mode_ms)}
+
       :fast_mode ->
         {:noreply, state(subscribers_pids, @fast_mode_ms)}
+
       {:custom_mode, ms} ->
         {:noreply, state(subscribers_pids, ms)}
     end
@@ -78,13 +97,20 @@ defmodule PokemonProducer do
     PokemonProdAgent.update(new_state)
     PokemonProdAgent.get()
   end
+
   # id could be the pokemon name or number
   defp get_pokemon(id) do
-    response = HTTPoison.get! "https://pokeapi.co/api/v2/pokemon/#{id}"
+    response = HTTPoison.get!("https://pokeapi.co/api/v2/pokemon/#{id}")
     {_, pokemon} = Jason.decode(response.body)
     get_attr = fn attr -> Map.get(pokemon, attr) end
-    %Pokemon{name: get_attr.("name"), number: get_attr.("id"), weight: get_attr.("weight"),
-      type: type(pokemon), moves: moves(pokemon)}
+
+    %Pokemon{
+      name: get_attr.("name"),
+      number: get_attr.("id"),
+      weight: get_attr.("weight"),
+      type: type(pokemon),
+      moves: moves(pokemon)
+    }
   end
 
   defp moves(pokemon) do
@@ -99,5 +125,4 @@ defmodule PokemonProducer do
     types_name = Enum.map(types_list, fn type -> Map.get(type, "name") end)
     List.first(types_name)
   end
-
 end

@@ -13,27 +13,27 @@ defmodule Consumer do
       {:ok, state}
     end
 
-    def handle_cast({:subscribe, queue_id}, state) do
-      Logger.info("Subscribing to #{queue_id}")
-      # QueueManager.subscribe(self(), queue_id)
+    def handle_cast({:subscribe, queue_id, mode}, state) do
+      Logger.info("Consumer: Subscribing to #{queue_id}")
+      QueueManager.subscribe(self(), queue_id, mode)
       {:noreply, state}
     end
 
     def handle_cast({:unsubscribe, queue_id}, state) do
-      Logger.info("Unsubscribing from #{queue_id}")
-      # QueueManager.subscribe(self(), queue_id)
+      Logger.info("Consumer: Unsubscribing from #{queue_id}")
+      QueueManager.unsubscribe(self(), queue_id)
       {:noreply, state}
     end
 
-    def handle_call({:consume, message}, _from, state) do
-      Logger.info("recieved #{message}")
-      {:reply, :ok, state}
+    def handle_cast({:consume, message}, state) do
+      Logger.info("Consumer: Recieved #{inspect message}")
+      {:noreply, state}
     end
 
     #---------------- Cliente ------------------#
 
-    def subscribe(pid, queue_id) do
-        GenServer.cast(pid, {:subscribe, queue_id})
+    def subscribe(pid, queue_id, mode) do
+        GenServer.cast(pid, {:subscribe, queue_id, mode})
     end
 
     def unsubscribe(pid, queue_id) do

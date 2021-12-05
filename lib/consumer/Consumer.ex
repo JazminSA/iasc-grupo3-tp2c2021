@@ -39,7 +39,7 @@ defmodule Consumer do
     def unsubscribe(pid, queue_id) do
         GenServer.cast(pid, {:unsubscribe, queue_id})
     end
-
+  
     def create() do
       ConsumerDynamicSupervisor.start_child({})
     end

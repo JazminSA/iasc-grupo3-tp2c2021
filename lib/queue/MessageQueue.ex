@@ -43,68 +43,100 @@ defmodule MessageQueue do
   def handle_call(:get, _from, state) do
     {:reply, state, state}
   end
-
-  def handle_cast({:receive_message, message}, {queue, consumers})
-      when length(consumers) > 0 do
-        Logger.info("receive_message  con consumidores  PS")
-    # {:noreply, {queue_add_message(message, queue), consumers}}
-    {:noreply, {queue_add_message(message, queue), consumers}, {:continue, :dispatch_message}}
+  # %{consumers: [], messages: {[], []}, queueName: :MessageQueuePS, type: :pub_sub}
+  def handle_cast({:receive_message, message}, state) do
+    Logger.info("receive_message  con consumidores  PS")
+    # when length(consumers) > 0 do
+      newState = do_receive_message(message, state)
+      # {:noreply, {queue_add_message(message, queue), consumers}}
+      {:noreply, newState, {:continue, {:dispatch_message2, message}}}
+      # end
   end
 
-  def handle_cast({:receive_message, message}, {queue, consumers, index})
-      when length(consumers) > 0 do
-        Logger.info("receive_message  con consumidores RR")
-    # {:noreply, {queue_add_message(message, queue), consumers, index}}
-    {:noreply, {queue_add_message(message, queue), consumers, index}, {:continue, :dispatch_message}}
+  defp get_consumers do
+
   end
 
-  def handle_cast({:receive_message, message}, {queue, consumers, index}) do
-    Logger.info("receive_message  sin consumidores RR")
-    {:noreply, {queue_add_message(message, queue), consumers, index}}
+  def do_receive_message(message, state) do
+    messages = Map.get(state, :messages)
+    msg = Map.put_new(message, :timestamp, :os.system_time(:milli_seconds))
+    # update_remote_queues(:push, message)
+    new_messages = :queue.in(msg, messages)
+    newState = Map.put(state, @messages_key, new_messages)
   end
 
-  def handle_cast({:receive_message, message}, {queue, consumers}) do
-    Logger.info("receive_message  sin consumidores PS")
-    {:noreply, {queue_add_message(message, queue), consumers}}
-  end
+  def handle_continue({:dispatch_message2, message}, state) do
+    Logger.info("dispatch_message2 PS")
+    queueName = Map.get(state, :queueName)
+    [ queueName | _ ] = Process.info(self())
 
-  def handle_continue(:dispatch_message, {queue, consumers, index}) do
-    Logger.info("dispatch_message  con consumidores  RR indice #{index}")
     {message, queue} = queue_pop_message(queue)
-    consumer = Enum.at(consumers, index)
-    send_message(message, consumer)
+
+    consumers_list = MessageQueueRegistry.get_queue_consumers(queueName)
+
+    Enum.each(consumers_list, fn c -> send_message(msg, c) end)
+
+
+    #update_remote_queues(:pop, msg)
+    {:noreply, {queue, consumers}}
     # consumers = MessageQueueRegistry.get_queue_consumers("queueName?")
-    update_remote_queues(:pop, message)
     # Enum.each(consumers, fn consumer -> send(message, consumer) end)
-    {:noreply, {queue, consumers, new_index(length(consumers), index)}}
   end
 
-  def handle_cast({:update_queue, {:pop, message}}, {queue, consumers, index}) do
-    Logger.info("update_queue pop  RR indice #{index}")
-    {_, queue} = queue_pop_message(queue)
-    queue = queue_delete_message(message, queue)
-    {:noreply, {queue, consumers, new_index(length(consumers), index)}}
-  end
+  # def handle_cast({:receive_message, message}, {queue, consumers, index})
+  #     when length(consumers) > 0 do
+  #       Logger.info("receive_message  con consumidores RR")
+  #   # {:noreply, {queue_add_message(message, queue), consumers, index}}
+  #   {:noreply, {queue_add_message(message, queue), consumers, index}, {:continue, :dispatch_message}}
+  # end
 
-  def handle_cast({:update_queue, {:push, message}}, {queue, consumers, index}) do
-    Logger.info("update_queue push  RR indice #{index}")
-    queue = :queue.in(message, queue)
-    {:noreply, {queue, consumers, new_index(length(consumers), index)}}
-  end
+  # def handle_cast({:receive_message, message}, {queue, consumers, index}) do
+  #   Logger.info("receive_message  sin consumidores RR")
+  #   {:noreply, {queue_add_message(message, queue), consumers, index}}
+  # end
 
-  def handle_cast({:update_queue, {:pop, message}}, {queue, consumers}) do
-    Logger.info("update_queue push  PS ")
-    #  2 opciones una con el pop, otra con el delete
-    # {_, queue} = queue_pop_message(queue)
-    queue = queue_delete_message(message, queue)
-    {:noreply, {queue, consumers}}
-  end
+  # def handle_cast({:receive_message, message}, {queue, consumers}) do
+  #   Logger.info("receive_message  sin consumidores PS")
+  #   {:noreply, {queue_add_message(message, queue), consumers}}
+  # end
 
-  def handle_cast({:update_queue, {:push, message}}, {queue, consumers}) do
-    Logger.info("update_queue push  PS")
-    queue = :queue.in(message, queue)
-    {:noreply, {queue, consumers}}
-  end
+  # def handle_continue(:dispatch_message, {queue, consumers, index}) do
+  #   Logger.info("dispatch_message  con consumidores  RR indice #{index}")
+  #   {message, queue} = queue_pop_message(queue)
+  #   consumer = Enum.at(consumers, index)
+  #   send_message(message, consumer)
+  #   # consumers = MessageQueueRegistry.get_queue_consumers("queueName?")
+  #   update_remote_queues(:pop, message)
+  #   # Enum.each(consumers, fn consumer -> send(message, consumer) end)
+  #   {:noreply, {queue, consumers, new_index(length(consumers), index)}}
+  # end
+
+  # def handle_cast({:update_queue, {:pop, message}}, {queue, consumers, index}) do
+  #   Logger.info("update_queue pop  RR indice #{index}")
+  #   {_, queue} = queue_pop_message(queue)
+  #   queue = queue_delete_message(message, queue)
+  #   {:noreply, {queue, consumers, new_index(length(consumers), index)}}
+  # end
+
+  # def handle_cast({:update_queue, {:push, message}}, {queue, consumers, index}) do
+  #   Logger.info("update_queue push  RR indice #{index}")
+  #   queue = :queue.in(message, queue)
+  #   {:noreply, {queue, consumers, new_index(length(consumers), index)}}
+  # end
+
+  # def handle_cast({:update_queue, {:pop, message}}, {queue, consumers}) do
+  #   Logger.info("update_queue push  PS ")
+  #   #  2 opciones una con el pop, otra con el delete
+  #   # {_, queue} = queue_pop_message(queue)
+  #   queue = queue_delete_message(message, queue)
+  #   {:noreply, {queue, consumers}}
+  # end
+
+  # def handle_cast({:update_queue, {:push, message}}, {queue, consumers}) do
+  #   Logger.info("update_queue push  PS")
+  #   queue = :queue.in(message, queue)
+  #   {:noreply, {queue, consumers}}
+  # end
 
   defp new_index(consumers_size, index) when consumers_size > index + 1 do
     index + 1
@@ -152,9 +184,17 @@ defmodule MessageQueue do
 
   defp queue_add_message(message, queue) do
     Logger.info("queue_add_message Ambos")
-    msg = %{message | timestamp: :os.system_time(:milli_seconds)}
+    # msg = %{message | timestamp: :os.system_time(:milli_seconds)}
+    msg = Map.put_new(message, :timestamp, :os.system_time(:milli_seconds))
     update_remote_queues(:push, message)
     queue = :queue.in(msg, queue)
+  end
+
+  defp queue_add_message2(message, queue) do
+    Logger.info("queue_add_message2 Ambos")
+    msg = Map.put_new(message, :timestamp, :os.system_time(:milli_seconds))
+    update_remote_queues(:push, message)
+    :queue.in(msg, queue)
   end
 
   defp queue_pop_message(queue) do
@@ -203,13 +243,13 @@ defmodule MessageQueue do
     GenServer.cast(pid, {:receive_message, message})
   end
 
-  def add_subscriber(pid, consumer) do
-    GenServer.cast(pid, {:add_subscriber, consumer})
-  end
+  # def add_subscriber(pid, consumer) do
+  #   GenServer.cast(pid, {:add_subscriber, consumer})
+  # end
 
-  def remove_subscriber(pid, consumer) do
-    GenServer.cast(pid, {:remove_subscriber, consumer})
-  end
+  # def remove_subscriber(pid, consumer) do
+  #   GenServer.cast(pid, {:remove_subscriber, consumer})
+  # end
 end
 
 # GenServer.cast(pid,{:push, :soy_un_estado})

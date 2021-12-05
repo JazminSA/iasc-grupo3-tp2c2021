@@ -1,4 +1,4 @@
-defmodule MessageQueueRegistry do
+defmodule ConsumersRegistry do
   require Logger
 
     def child_spec(opts) do
@@ -32,7 +32,7 @@ defmodule MessageQueueRegistry do
   end
 
 
-  #MessageQueueRegistry.get_queue_consumers("hola")
+  #ConsumersRegistry.get_queue_consumers("hola")
   #{:ok, pid} = Consumer.create()
-  #MessageQueueRegistry.register_queue_consumer("hola", pid)
-  #MessageQueueRegistry.get_queue_consumers("hola")
+  #ConsumersRegistry.register_queue_consumer("hola", pid)
+  #ConsumersRegistry.get_queue_consumers("hola")

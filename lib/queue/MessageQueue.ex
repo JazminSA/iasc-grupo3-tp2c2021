@@ -4,21 +4,22 @@ defmodule MessageQueue do
   # ---------------- Servidor ------------------#
 
   def start_link(name, state) do
-    Logger.info("start_link #{name} #{inspect state}")
-    GenServer.start_link(__MODULE__, state, name: name)
+    GenServer.start_link(__MODULE__, state, name: process_name(name))
   end
 
   def child_spec({name, state}) do
-    Logger.info("child_spec #{name} #{inspect state}")
     %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
   end
+
+  defp process_name(name),
+    do: {:via, Registry, {QueuesRegistry, name}}
 
   def init(state) do
       Logger.info("Queue init #{inspect state}")
         #obtener estado actualizado de este proceso en alguna de las réplicas e inicializar con ese estado (libcluster genera la misma jerarquía)
         #consultar con el registry de otro nodo (por ej. por nombre)
         # consumers = [] #?
-        # MessageQueueRegistry.subscribe_consumer(name, consumers)
+        # ConsumersRegistry.subscribe_consumer(name, consumers)
 
         # 1- obtener mi propio Name
         # 2- consultar por el Name, si existen messages + consumers en otros nodos para sincronizar
@@ -26,8 +27,8 @@ defmodule MessageQueue do
 
         name = Map.get(state, :queueName)
         #[node | nodes] = Node.list
-        restored_consumers = MessageQueueRegistry.get_queue_consumers(name)
-        # restored_consumers = :rpc.call(node, MessageQueueRegistry, :get_queue_consumers, [name])
+        restored_consumers = ConsumersRegistry.get_queue_consumers(name)
+        # restored_consumers = :rpc.call(node, ConsumersRegistry, :get_queue_consumers, [name])
         # todo: where do i extract messages from, Agent?
         restored_messages = :queue.new()
 
@@ -80,7 +81,7 @@ defmodule MessageQueue do
   #   {message, queue} = queue_pop_message(queue)
   #   consumer = Enum.at(consumers, index)
   #   send_message(message, consumer)
-  #   # consumers = MessageQueueRegistry.get_queue_consumers("queueName?")
+  #   # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
   #   update_remote_queues(:pop, message)
   #   # Enum.each(consumers, fn consumer -> send(message, consumer) end)
   #   {:noreply, {queue, consumers, new_index(length(consumers), index)}}
@@ -95,7 +96,7 @@ defmodule MessageQueue do
     Enum.each(consumers_list, fn c -> send_message(msg, c) end)
     update_remote_queues(:pop, msg)
     {:noreply, %{state | messages: queue}}
-    # consumers = MessageQueueRegistry.get_queue_consumers("queueName?")
+    # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
     # Enum.each(consumers, fn consumer -> send(message, consumer) end)
   end
 

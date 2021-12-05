@@ -4,14 +4,15 @@ defmodule MessageQueue do
   # ---------------- Servidor ------------------#
 
   def start_link(name, state) do
-    Logger.info("start_link #{name} #{inspect state}")
-    GenServer.start_link(__MODULE__, state, name: name)
+    GenServer.start_link(__MODULE__, state, name: process_name(name))
   end
 
   def child_spec({name, state}) do
-    Logger.info("child_spec #{name} #{inspect state}")
     %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
   end
+
+  defp process_name(name),
+    do: {:via, Registry, {QueuesRegistry, name}}
 
   def init(state) do
       Logger.info("Queue init #{inspect state}")

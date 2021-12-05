@@ -50,9 +50,6 @@ defmodule QueueManager do
     def handle_cast({:subscribe, consumer_pid, queue_id, mode}, state) do
       Logger.info("QM: Register #{inspect consumer_pid} to #{queue_id}")
 
-      #todo: get pid of the queue_name
-
-
       # Propagate subscription to all connected nodes
       Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:subscribe_replicate, consumer_pid, queue_id, mode}) end)
 

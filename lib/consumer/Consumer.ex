@@ -26,7 +26,7 @@ defmodule Consumer do
     end
 
     def handle_cast({:consume, message}, state) do
-      Logger.info("Consumer: Recieved #{inspect message}")
+      Logger.info("Consumer: Received #{inspect message}")
       {:noreply, state}
     end
 

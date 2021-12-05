@@ -89,6 +89,8 @@ defmodule MessageQueue do
 
   def handle_continue(:dispatch_message, %{messages: messages, consumers: consumers} = state) do
     Logger.info("dispatch_message PS")
+    IO.puts "dispatch_message"
+
     {msg, queue} = queue_pop_message(messages)
 
     consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
@@ -207,7 +209,8 @@ defmodule MessageQueue do
     GenServer.call(pid, :get)
   end
 
-  def receive_message(pid, message) do
+  def receive_message(queue_id, message) do
+    pid = QueuesRegistry.get_pid(queue_id)
     GenServer.cast(pid, {:receive_message, message})
   end
 

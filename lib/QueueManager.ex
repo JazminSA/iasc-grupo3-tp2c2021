@@ -22,6 +22,13 @@ defmodule QueueManager do
     def handle_call({:create, queue_id, type}, _from, state) do
       # TODO: Vincular con Colas
       {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
+      Enum.each(Node.list(), fn node -> :rpc.call(node, QueueManager, :create_queue, [queue_id, type, :replicated]) end)
+      {:reply, pid, state}
+    end
+
+    def handle_call({:create, queue_id, type, :replicated}, _from, state) do
+      # TODO: Vincular con Colas
+      {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
       {:reply, pid, state}
     end
 
@@ -77,6 +84,9 @@ defmodule QueueManager do
 
     def create_queue(queue_id, type) do
       GenServer.call(QueueManager, {:create, queue_id, type})
+    end
+    def create_queue(queue_id, type, :replicated) do
+      GenServer.call(QueueManager, {:create, queue_id, type, :replicated})
     end
 
     def delete_queue(queue_id) do

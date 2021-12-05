@@ -22,9 +22,14 @@ defmodule MessageQueue do
         # 3- inicializar con nuevo estado
 
         name = Map.get(state, :queueName)
+        [node | nodes] = Node.list
+        restored_consumers = :rpc.call(node, MessageQueueRegistry, :get_queue_consumers, [name])
+        #todo: where do i extract messages from, Agent?
+        restored_messages = :queue.new()
+
         type = Map.get(state, :type)
-        new_state = Map.put_new(state, :messages, :queue.new())
-        new_state = Map.put_new(new_state, :consumers, [])
+        new_state = Map.put_new(state, :messages, restored_messages)
+        new_state = Map.put_new(new_state, :consumers, restored_consumers)
 
         cond do
           type == :pub_sub -> 

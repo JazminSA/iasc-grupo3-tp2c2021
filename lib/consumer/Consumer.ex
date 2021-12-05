@@ -25,9 +25,9 @@ defmodule Consumer do
       {:noreply, state}
     end
 
-    def handle_call({:consume, message}, _from, state) do
-      Logger.info("Consumer: Recieved #{message}")
-      {:reply, :ok, state}
+    def handle_cast({:consume, message}, state) do
+      Logger.info("Consumer: Recieved #{inspect message}")
+      {:noreply, state}
     end
 
     #---------------- Cliente ------------------#

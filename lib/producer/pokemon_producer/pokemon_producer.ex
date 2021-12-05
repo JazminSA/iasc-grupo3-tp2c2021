@@ -1,5 +1,6 @@
 defmodule PokemonProducer do
   use GenServer
+  require Logger
 
   # miliseconds producer waitness
   @normal_mode_ms 5000
@@ -21,7 +22,7 @@ defmodule PokemonProducer do
 
   defp produce(subscribers_pids, mode) do
     Process.sleep(mode)
-    Enum.each(subscribers_pids, fn pid -> send(pid, get_pokemon(random_number())) end)
+    Enum.each(subscribers_pids, fn pid -> GenServer.cast(pid, {:receive_message, get_pokemon(random_number())}) end)
   end
 
   # def call_queue_manager() do

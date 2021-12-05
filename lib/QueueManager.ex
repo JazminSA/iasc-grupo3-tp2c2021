@@ -54,7 +54,6 @@ defmodule QueueManager do
 
 
       # Propagate subscription to all connected nodes
-      # Enum.each(Node.list(), fn node -> :erpc.cast(node, MessageQueueRegistry, :subscribe_consumer, [queue_id, consumer_pid]) end)
       Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:subscribe_replicate, consumer_pid, queue_id, mode}) end)
 
       # Subscribe consumer
@@ -74,14 +73,14 @@ defmodule QueueManager do
       Enum.each(Node.list(), fn node -> GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, mode}) end)
 
       # Unsubscribe consumer from Registry
-      MessageQueueRegistry.unsubscribe_consumer(queue_id, consumer_pid)
+      ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
 
       {:noreply, state}
     end
 
     # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
     defp do_subscribe(queue_id, consumer_pid, mode) do
-      MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
+      ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
 
     end
 

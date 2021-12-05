@@ -8,12 +8,10 @@ defmodule PokemonProducer do
 
   def start_link(pokemon_prod_state) do
     IO.puts("Starting PokemonProducer")
-    # Starting HTTP Client Process
-    HTTPoison.start()
+    HTTPoison.start() # Starting HTTP Client Process
     start_result = GenServer.start_link(__MODULE__, PokemonProdAgent.get(), name: __MODULE__)
     GenServer.cast(__MODULE__, :prod)
-    # {:ok, pid}
-    start_result
+    start_result # {:ok, pid}
   end
 
   def init(pokemon_prod_state) do
@@ -23,7 +21,6 @@ defmodule PokemonProducer do
 
   defp produce(subscribers_pids, mode) do
     Process.sleep(mode)
-
     Enum.each(subscribers_pids, fn pid ->
       GenServer.cast(pid, {:receive_message, get_pokemon(random_number())})
     end)
@@ -33,7 +30,7 @@ defmodule PokemonProducer do
     {_, new_subs_pids} = GenServer.call(QueueManager, {:produce_to})
     current_state = PokemonProdAgent.get()
     subs_pids = PokemonProdAgent.get_subs_pids()
-    update_and_get_state(subs_pids ++ new_subs_pids, PokemonProdAgent.get_prod_mode())
+    update_and_get_state(subs_pids ++ new_subs_pids, PokemonProdAgent.get_prod_mode()))
   end
 
   defp random_number() do

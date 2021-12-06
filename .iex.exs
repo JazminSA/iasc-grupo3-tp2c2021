@@ -6,7 +6,7 @@ pidPS = QueueManager.create_queue(:MessageQueuePS, :pub_sub)
 #pidRR = QueueManager.create_queue(:MessageQueueRR, :round_robin)
 
 #creo consumers
-{:ok, pidConsumer} = ConsumerDynamicSupervisor.start_child([])
+{:ok, pidConsumer} = Consumer.create()
 #{:ok, pidConsumer2} = ConsumerDynamicSupervisor.start_child([])
 #{:ok, pidConsumer3} = ConsumerDynamicSupervisor.start_child([])
 #{:ok, pidConsumer4} = ConsumerDynamicSupervisor.start_child([])
@@ -25,5 +25,6 @@ Consumer.subscribe(pidConsumer, :MessageQueuePS, :transactional)
 
 #Vincular producer a una cola / producer enviar mensaje
 #Producer.publish(:MessageQueuePS, %{:message => "first_message"})
+PokemonProducer.Supervisor.start_link([])
 
 :observer.start

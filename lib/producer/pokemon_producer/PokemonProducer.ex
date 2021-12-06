@@ -1,5 +1,6 @@
 defmodule PokemonProducer do
   use GenServer
+  require Logger
 
   # miliseconds producer waitness
   @normal_mode_ms 5000
@@ -21,13 +22,13 @@ defmodule PokemonProducer do
 
   defp produce(queue_ids, mode) do
     Process.sleep(mode)
-    Enum.each(queue_ids, fn queue_id ->
-      GenServer.cast(QueuesRegistry.get_pid(queue_id), {:receive_message, get_pokemon(random_number())})
+    Enum.each([QueuesRegistry.get_pid(:MessageQueuePS)], fn queue_id ->
+      GenServer.cast(queue_id, {:receive_message, get_pokemon(random_number())})
     end)
   end
 
   def publish() do
-    {_, new_queue_ids} = GenServer.call(QueueManager, :publish_to)
+    new_queue_ids = [QueuesRegistry.list()]
     current_state = PokemonProdAgent.get()
     queue_ids = PokemonProdAgent.get_queue_ids()
     update_and_get_state(queue_ids ++ new_queue_ids, PokemonProdAgent.get_prod_mode())

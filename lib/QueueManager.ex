@@ -33,7 +33,7 @@ defmodule QueueManager do
     {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
 
     Enum.each(Node.list(), fn node ->
-      :rpc.call(node, QueueManager, :create_queue, [queue_id, type, :replicated])
+      :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
     end)
 
     {:reply, pid, state}

@@ -4,7 +4,8 @@ defmodule MessageQueue do
   # ---------------- Servidor ------------------#
 
   def start_link(name, state) do
-    GenServer.start_link(__MODULE__, state, name: process_name(name))
+    result = GenServer.start_link(__MODULE__, state, name: process_name(name))
+    result
   end
 
   def child_spec({name, state}) do
@@ -38,7 +39,7 @@ defmodule MessageQueue do
     new_state = Map.put_new(new_state, :consumers, restored_consumers)
 
     #Logger.info("Queue final state: #{inspect(new_state)}")
-
+    GenServer.cast(self(), :dispatch_messages)
     cond do
       type == :pub_sub ->
         {:ok, new_state}
@@ -55,11 +56,10 @@ defmodule MessageQueue do
 
   def handle_cast({:receive_message, message}, %{messages: queue, consumers: consumers} = state)
       when length(consumers) > 0 do
-    #Logger.info("receive_message con consumidores")
     #Logger.info("#{inspect(queue)}  #{inspect(consumers)} #{inspect(state)}")
-
-    {:noreply, %{state | messages: queue_add_message(message, queue)},
-     {:continue, :dispatch_message}}
+    messages = queue_add_message(message, queue)
+    {:noreply, %{state | messages: messages}}
+     #{:continue, :dispatch_message}}
 
     # {:noreply, {queue_add_message(message, queue), consumers}}
     # {:noreply, {queue_add_message(message, queue), consumers}, {:continue, :dispatch_message}}
@@ -83,30 +83,39 @@ defmodule MessageQueue do
   #   {:noreply, {queue_add_message(message, queue), consumers}}
   # end
 
-  def handle_continue(
-        :dispatch_message,
+  def handle_cast(
+        :dispatch_messages,
         %{messages: messages, consumers: consumers, index: index} = state
       ) do
-    #Logger.info("dispatch_message  con consumidores  RR indice #{index}")
+    Logger.info("dispatch_message  con consumidores  RR indice #{index}")
     {message, queue} = queue_pop_message(messages)
     consumer = Enum.at(consumers, index)
     send_message(message, consumer)
     # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
     update_remote_queues(:pop, message)
     # Enum.each(consumers, fn consumer -> send(message, consumer) end)
+    GenServer.cast(self(), :dispatch_messages)
     {:noreply, %{state | messages: queue, index: new_index(length(consumers), index)}}
+
     # {:noreply, {queue, consumers, new_index(length(consumers), index)}}
   end
 
-  def handle_continue(:dispatch_message, %{messages: messages, consumers: consumers} = state) do
-    #Logger.info("dispatch_message PS")
-    {msg, queue} = queue_pop_message(messages)
+  def handle_cast(:dispatch_messages, %{messages: messages, consumers: consumers} = state) do
+    case :queue.len(messages)  do
+      0 ->
+        GenServer.cast(self(), :dispatch_messages)
+        {:noreply, state}
+      _ ->
+        {msg, queue} = queue_pop_message(messages)
 
-    consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
+        consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
 
-    Enum.each(consumers_list, fn c -> send_message(msg, c) end)
-    update_remote_queues(:pop, msg)
-    {:noreply, %{state | messages: queue}}
+        Enum.each(consumers_list, fn c -> send_message(msg, c) end)
+        update_remote_queues(:pop, msg)
+        GenServer.cast(self(), :dispatch_messages)
+        {:noreply, %{state | messages: queue}}
+    end
+
     # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
     # Enum.each(consumers, fn consumer -> send(message, consumer) end)
   end
@@ -196,7 +205,8 @@ defmodule MessageQueue do
     queue = :queue.in(msg, queue)
   end
 
-  defp queue_pop_message(queue) do
+  defp queue_pop_message(queue)
+  do
     #Logger.info("queue_pop_message Ambos")
 
     {{:value, head}, queue} = :queue.out(queue)
@@ -214,7 +224,7 @@ defmodule MessageQueue do
   end
 
   def handle_cast({:add_subscriber, consumer}, %{consumers: consumers} = state) do
-    #Logger.info("add_subscriber Para PS")
+    Logger.info("add_subscriber Para PS")
     new_consumers = consumers ++ [%{consumer | timestamp: :os.system_time(:milli_seconds)}]
     {:noreply, %{state | consumers: new_consumers}}
   end

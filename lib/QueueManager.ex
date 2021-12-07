@@ -16,16 +16,7 @@ defmodule QueueManager do
   def handle_call(:get_queues, _from, state) do
     # todo: how to get all distinct keys of ConsumersRegistry?
     # keys = Registry.keys(ConsumersRegistry, self())
-    {:reply, :ok, state}
-  end
-
-  # Producer
-  def handle_call({:subs_prod}, from, state) do
-    IO.puts("Subscribing new producer with pid #{from}")
-    # Save producer pid for unsubscribe if need
-    # <- Queue pids who will receive messages from producer
-    queue_pids = []
-    {:replay, queue_pids, state}
+    {:reply, QueuesRegistry.list(), state}
   end
 
   def handle_call({:create, queue_id, type}, _from, state) do

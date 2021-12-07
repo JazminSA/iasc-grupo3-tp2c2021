@@ -1,6 +1,5 @@
 defmodule PokemonProducer do
   use GenServer
-  require Logger
 
   # miliseconds producer waitness
   @normal_mode_ms 5000
@@ -20,28 +19,16 @@ defmodule PokemonProducer do
     {:ok, pokemon_prod_state}
   end
 
-  defp produce(queue_ids, mode) do
-    Process.sleep(mode)
-    Enum.each([QueuesRegistry.get_pid(:MessageQueuePS)], fn queue_id ->
-      GenServer.cast(queue_id, {:receive_message, get_pokemon(random_number())})
-    end)
-  end
-
   def publish() do
-    new_queue_ids = [QueuesRegistry.list()]
-    current_state = PokemonProdAgent.get()
-    queue_ids = PokemonProdAgent.get_queue_ids()
-    update_and_get_state(queue_ids ++ new_queue_ids, PokemonProdAgent.get_prod_mode())
+    GenServer.cast(__MODULE__, :produce_to)
   end
 
-  defp random_number() do
-    Enum.random(1..150)
-  end
-
+  # Deprecated
   def subscribe(queue_pid) do # Para fines de prueba
     GenServer.cast(__MODULE__, {:subs, queue_pid})
   end
 
+  # Deprecated
   def unsubscribe(queue_pid) do
     GenServer.cast(__MODULE__, {:unsubs, queue_pid})
   end
@@ -68,6 +55,8 @@ defmodule PokemonProducer do
         produce(queue_ids, mode)
         GenServer.cast(__MODULE__, :prod)
         {:noreply, update_and_get_state(queue_ids, mode)}
+      :produce_to ->
+        {:noreply, update_and_get_state(queue_ids ++ new_queues(), mode)}
       {:subs, queue_id} ->
         {:noreply, update_and_get_state([queue_id | queue_ids], mode)}
       {:unsubs, queue_id} ->
@@ -81,6 +70,21 @@ defmodule PokemonProducer do
       {:custom_mode, ms} ->
         {:noreply, update_and_get_state(queue_ids, ms)}
     end
+  end
+
+  defp produce(queue_ids, mode) do
+    Process.sleep(mode)
+    Enum.each(queue_ids, fn queue_id ->
+      GenServer.cast(queue_id, {:receive_message, get_pokemon(random_number())})
+    end)
+  end
+
+  defp random_number() do
+    Enum.random(1..150)
+  end
+
+  defp new_queues() do
+    QueueManager.get_queues()
   end
 
   defp update_and_get_state(new_queue_ids, new_mode) do

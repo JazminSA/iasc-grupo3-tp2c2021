@@ -28,5 +28,4 @@ defmodule PokemonProdAgent do
     PokemonProdAgent.update(new_state)
     PokemonProdAgent.get()
   end
-
 end

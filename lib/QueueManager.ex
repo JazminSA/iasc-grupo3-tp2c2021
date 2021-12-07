@@ -9,6 +9,7 @@ defmodule QueueManager do
   end
 
   def init(state) do
+    :net_kernel.monitor_nodes(true)
     {:ok, state}
   end
 
@@ -74,15 +75,25 @@ defmodule QueueManager do
     {:noreply, state}
   end
 
+  def handle_info({:nodedown, node}, state) do
+    Logger.info("Node #{node} is down")
+    {:noreply, state}
+  end
 
-    # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
-    defp do_subscribe(queue_id, consumer_pid, mode) do
-      ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
-      via_tuple = QueuesRegistry.get_pid(queue_id)
+  def handle_info({:nodeup, node}, state) do
+    Logger.info("Node #{node} is up")
+    {:noreply, state}
+  end
 
-      # TODO: Ejecutar esta linea solo si es el nodo activo
-      GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pid}})
-    end
+
+  # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
+  defp do_subscribe(queue_id, consumer_pid, mode) do
+    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
+    via_tuple = QueuesRegistry.get_pid(queue_id)
+
+    # TODO: Ejecutar esta linea solo si es el nodo activo
+    GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pid}})
+  end
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
   defp do_subscribe(queue_id, consumer_pid, mode) do

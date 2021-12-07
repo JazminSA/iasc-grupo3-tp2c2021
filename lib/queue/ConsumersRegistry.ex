@@ -18,7 +18,9 @@ defmodule ConsumersRegistry do
     def subscribe_consumer(queue, pid, mode) do
       Logger.info("Registry: subscribing #{inspect pid} to #{queue} as #{mode}")
       # todo: save in Agent the consumer mode (trans/notrans)
-      Registry.register(__MODULE__, queue, pid)
+      # consumer = %ConsumerStruct{id: pid, timestamp: :os.system_time(:milli_seconds), mode: mode }
+      consumer = %{ id: pid, timestamp: :os.system_time(:milli_seconds), mode: mode }
+      Registry.register(__MODULE__, queue, consumer)
     end
 
     def unsubscribe_consumer(queue, pid) do

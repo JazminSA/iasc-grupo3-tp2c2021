@@ -14,18 +14,9 @@ defmodule QueueManager do
 
   # Queues
   def handle_call(:get_queues, _from, state) do
-    # todo: how to get all distinct keys of MessageQueueRegistry?
-    # keys = Registry.keys(MessageQueueRegistry, self())
-    {:reply, :ok, state}
-  end
-
-  # Producer
-  def handle_call({:subs_prod}, from, state) do
-    IO.puts("Subscribing new producer with pid #{from}")
-    # Save producer pid for unsubscribe if need
-    # <- Queue pids who will receive messages from producer
-    queue_pids = []
-    {:replay, queue_pids, state}
+    # todo: how to get all distinct keys of ConsumersRegistry?
+    # keys = Registry.keys(ConsumersRegistry, self())
+    {:reply, QueuesRegistry.list(), state}
   end
 
   def handle_call({:create, queue_id, type}, _from, state) do
@@ -33,7 +24,7 @@ defmodule QueueManager do
     {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
 
     Enum.each(Node.list(), fn node ->
-      :rpc.call(node, QueueManager, :create_queue, [queue_id, type, :replicated])
+      :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
     end)
 
     {:reply, pid, state}
@@ -90,12 +81,12 @@ defmodule QueueManager do
       via_tuple = QueuesRegistry.get_pid(queue_id)
 
       # TODO: Ejecutar esta linea solo si es el nodo activo
-      GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pid}})
+      # GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pids}})
     end
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
   defp do_subscribe(queue_id, consumer_pid, mode) do
-    MessageQueueRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
+    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
   end
 
   # ---------------- Cliente ------------------#

@@ -6,11 +6,11 @@ defmodule ConsumerStruct do
   end
 
   def consumo_transaccional(consumer) do
-    consumer
+    %{consumer |  mode: :transactional}
   end
 
   def consumo_no_transaccional(consumer) do
-    %{consumer | type: :no_transaccional}
+    %{consumer |  mode: :not_transactional}
   end
 
 end

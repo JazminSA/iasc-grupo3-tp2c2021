@@ -20,6 +20,7 @@ defmodule QueuesRegistry do
     end
 
     def list() do
-      Registry.keys(__MODULE__, self())
+      queue_names = Registry.select(QueuesRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
+      Enum.map(queue_names, fn queue_name -> get_pid(queue_name) end)
     end
   end

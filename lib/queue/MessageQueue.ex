@@ -29,7 +29,7 @@ defmodule MessageQueue do
         {:ok, new_state}
 
       type == :round_robin ->
-        new_state = Map.put_new(new_state, :index, nil)
+        new_state = Map.put_new(new_state, :index, 0)
         {:ok, new_state}
     end
   end

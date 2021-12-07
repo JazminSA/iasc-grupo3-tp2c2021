@@ -90,7 +90,7 @@ defmodule QueueManager do
       via_tuple = QueuesRegistry.get_pid(queue_id)
 
       # TODO: Ejecutar esta linea solo si es el nodo activo
-      GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pid}})
+      # GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pids}})
     end
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry

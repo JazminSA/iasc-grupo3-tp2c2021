@@ -32,10 +32,7 @@ defmodule ManagerNodesAgent do
   def assign_queue_to_node(queue_id, node_id) do
     state = ManagerNodesAgent.get()
     # Update Nodes
-    previous_count = case state do
-      %{nodes: %{node_id: count}} -> count
-      _ -> 0
-    end
+    previous_count = get_in(state, [:nodes, node_id]) || 0
     new_state = put_in(state, [:nodes, node_id], previous_count + 1)
 
     # Update queues
@@ -69,13 +66,21 @@ defmodule ManagerNodesAgent do
   def transfer_queues(origin, destination) do
     queues = get_queues_in_node(origin)
     assign_queues_to_node(queues, destination)
+    remove_node(origin)
   end
 
-  defp min_node_by_queues_count(%{}) do
+  defp remove_node(node) do
+    state = ManagerNodesAgent.get()
+    {_v, nodes} = pop_in(state, [:nodes, node])
+    ManagerNodesAgent.update(node)
+  end
+
+  defp min_node_by_queues_count(nodes) when nodes == %{} do
     Node.self()
   end
 
   defp min_node_by_queues_count(nodes)  do
-    Enum.min_by(nodes, fn {_k, count} -> count end)
+    {node_id, _val} = Enum.min_by(nodes, fn {_k, count} -> count end)
+    node_id
   end
 end

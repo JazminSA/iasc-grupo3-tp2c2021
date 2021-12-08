@@ -21,7 +21,6 @@ defmodule QueueManager do
   end
 
   def handle_call({:create, queue_id, type}, _from, state) do
-    # TODO: Vincular con Colas
     {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
 
     Enum.each(Node.list(), fn node ->

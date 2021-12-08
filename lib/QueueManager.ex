@@ -21,19 +21,28 @@ defmodule QueueManager do
 
   def handle_call({:create, queue_id, type}, _from, state) do
     # TODO: Vincular con Colas
-    {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
+    # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
+   {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+   Agent.update(pidAgent, fn state -> Map.put(state,:agentPid, pidAgent) end)
+    Logger.info("handle_call :create ")
+    # {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
+    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+    Logger.info("handle_call :create")
 
     Enum.each(Node.list(), fn node ->
       :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
     end)
 
-    {:reply, pid, state}
+    # {:reply, {pidQueue, pidAgent}, state}
+    {:reply, {pidQueue, pidAgent} , state}
   end
 
   def handle_call({:create, queue_id, type, :replicated}, _from, state) do
     # TODO: Vincular con Colas
-    {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
-    {:reply, pid, state}
+    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+    Agent.update(pidAgent, fn state -> Map.put(state,:agentPid, pidAgent) end)
+    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
+    {:reply, {pidQueue, pidAgent}, state}
   end
 
   def handle_cast({:delete, _queue_id}, state) do

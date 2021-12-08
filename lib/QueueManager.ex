@@ -23,6 +23,8 @@ defmodule QueueManager do
   def handle_call({:create, queue_id, type}, _from, state) do
     {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
 
+    ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
+
     Enum.each(Node.list(), fn node ->
       :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
     end)

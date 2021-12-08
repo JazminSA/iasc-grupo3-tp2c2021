@@ -2,8 +2,11 @@ defmodule ManagerNodesAgent do
   use Agent
 
   def start_link(_initial_state) do
-    initial = %{nodes: %{}, queues: %{}}
-    Agent.start_link(fn -> initial end, name: __MODULE__)
+    state = case length(Node.list()) do
+      0 -> %{nodes: %{}, queues: %{}}
+      _ -> :erpc.call(Enum.random(Node.list()), ManagerNodesAgent, :get, [])
+    end
+    Agent.start_link(fn -> state end, name: __MODULE__)
   end
 
   def get do
@@ -44,8 +47,12 @@ defmodule ManagerNodesAgent do
   end
 
   def get_queues_in_node() do
+    get_queues_in_node(Node.self())
+  end
+
+  def get_queues_in_node(node) do
     state = ManagerNodesAgent.get()
-    queues = Enum.filter(Map.get(state, :queues), fn {_, node_id} -> node_id == Node.self() end)
+    queues = Enum.filter(Map.get(state, :queues), fn {_, node_id} -> node_id == node end)
     Enum.map(queues, fn {queue, _node} -> queue end)
   end
 
@@ -57,6 +64,11 @@ defmodule ManagerNodesAgent do
   def get_node_for_queue(queue_id) do
     state = ManagerNodesAgent.get()
     get_in(state, [:queues, queue_id])
+  end
+
+  def transfer_queues(origin, destination) do
+    queues = get_queues_in_node(origin)
+    assign_queues_to_node(queues, destination)
   end
 
   defp min_node_by_queues_count(%{}) do

@@ -88,6 +88,13 @@ defmodule QueueManager do
 
   def handle_info({:nodedown, node}, state) do
     Logger.info("Node #{node} is down")
+    lazier_node = ManagerNodesAgent.get_lazier_node()
+
+    # TODO: What happens if node down is lazier node
+    if Node.self() == lazier_node do
+      ManagerNodesAgent.transfer_queues(node, Node.self())
+    end
+
     {:noreply, state}
   end
 

@@ -10,8 +10,8 @@ defmodule MessageQueueAgent do
   end
 
   def child_spec({name, state}) do
-    Logger.info("child_spec MessageQueueAgent")
-    %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
+    # Logger.info("child_spec MessageQueueAgent")
+    %{id: name, start: {__MODULE__, :start_link, [name, state]}, restart: :transient, type: :worker}
   end
 
   def get do

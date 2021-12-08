@@ -9,6 +9,7 @@
 {:ok, pidConsumer} = Consumer.create()
 {:ok, pidConsumer2} = Consumer.create()
 {:ok, pidConsumer3} = Consumer.create()
+
 #{:ok, pidConsumer3} = ConsumerDynamicSupervisor.start_child([])
 #{:ok, pidConsumer4} = ConsumerDynamicSupervisor.start_child([])
 

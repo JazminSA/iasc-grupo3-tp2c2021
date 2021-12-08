@@ -23,10 +23,10 @@ defmodule ManagerNodesAgent do
   def assign_queue_to_lazier_node(queue_id) do
     lazier_node = get_lazier_node() || Node.self()
     assign_queue_to_node(queue_id, lazier_node)
+    lazier_node
   end
 
   def assign_queue_to_node(queue_id, node_id) do
-    IO.puts("assign")
     state = ManagerNodesAgent.get()
     # Update Nodes
     previous_count = case state do

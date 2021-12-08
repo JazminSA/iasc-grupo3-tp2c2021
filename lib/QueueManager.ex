@@ -23,19 +23,18 @@ defmodule QueueManager do
   def handle_call({:create, queue_id, type}, _from, state) do
     {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
 
-    ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
+    destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
     Enum.each(Node.list(), fn node ->
-      :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
-      :rpc.call(node, QueueManager, :sync_queues_from_node, [node])
+      :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
     end)
 
     {:reply, pid, state}
   end
 
-  def handle_call({:create, queue_id, type, :replicated}, _from, state) do
-    # TODO: Vincular con Colas
+  def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do
     {:ok, pid} = MessageQueueDynamicSupervisor.start_child(queue_id, type, [])
+    ManagerNodesAgent.assign_queue_to_node(queue_id, destination_node)
     {:reply, pid, state}
   end
 
@@ -109,12 +108,12 @@ defmodule QueueManager do
     GenServer.call(QueueManager, :get_queues)
   end
 
-  def create_queue(queue_id, type) do
+  def create(queue_id, type) do
     GenServer.call(QueueManager, {:create, queue_id, type})
   end
 
-  def create_queue(queue_id, type, :replicated) do
-    GenServer.call(QueueManager, {:create, queue_id, type, :replicated})
+  def create(queue_id, type, destination_node, :replicated) do
+    GenServer.call(QueueManager, {:create, queue_id, type, destination_node, :replicated})
   end
 
   def delete_queue(queue_id) do

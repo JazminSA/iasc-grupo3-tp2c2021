@@ -87,33 +87,43 @@ defmodule MessageQueue do
         :dispatch_messages,
         %{messages: messages, consumers: consumers, index: index} = state
       ) do
-    Logger.info("dispatch_message  con consumidores  RR indice #{index}")
-    {message, queue} = queue_pop_message(messages)
-    consumer = Enum.at(consumers, index)
-    send_message(message, consumer)
-    # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
-    update_remote_queues(:pop, message)
-    # Enum.each(consumers, fn consumer -> send(message, consumer) end)
-    GenServer.cast(self(), :dispatch_messages)
-    {:noreply, %{state | messages: queue, index: new_index(length(consumers), index)}}
-
-    # {:noreply, {queue, consumers, new_index(length(consumers), index)}}
+        cond do
+          ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() ->
+            {message, queue} = queue_pop_message(messages)
+            consumer = Enum.at(consumers, index)
+            send_message(message, consumer)
+            # consumers = ConsumersRegistry.get_queue_consumers("queueName?")
+            update_remote_queues(:pop, message)
+            # Enum.each(consumers, fn consumer -> send(message, consumer) end)
+            GenServer.cast(self(), :dispatch_messages)
+            {:noreply, %{state | messages: queue, index: new_index(length(consumers), index)}}
+          true ->
+            GenServer.cast(self(), :dispatch_messages)
+            {:noreply, state}
+        end
   end
 
   def handle_cast(:dispatch_messages, %{messages: messages, consumers: consumers} = state) do
-    case :queue.len(messages)  do
-      0 ->
+    cond do
+      ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() ->
+        Logger.info("dispatch_message queue #{inspect self()}")
+        case :queue.len(messages)  do
+          0 ->
+            GenServer.cast(self(), :dispatch_messages)
+            {:noreply, state}
+          _ ->
+            {msg, queue} = queue_pop_message(messages)
+
+            consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
+
+            Enum.each(consumers_list, fn c -> send_message(msg, c) end)
+            update_remote_queues(:pop, msg)
+            GenServer.cast(self(), :dispatch_messages)
+            {:noreply, %{state | messages: queue}}
+        end
+      true ->
         GenServer.cast(self(), :dispatch_messages)
         {:noreply, state}
-      _ ->
-        {msg, queue} = queue_pop_message(messages)
-
-        consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
-
-        Enum.each(consumers_list, fn c -> send_message(msg, c) end)
-        update_remote_queues(:pop, msg)
-        GenServer.cast(self(), :dispatch_messages)
-        {:noreply, %{state | messages: queue}}
     end
 
     # consumers = ConsumersRegistry.get_queue_consumers("queueName?")

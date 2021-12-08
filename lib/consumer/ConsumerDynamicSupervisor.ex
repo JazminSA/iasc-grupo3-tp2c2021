@@ -10,14 +10,8 @@ defmodule ConsumerDynamicSupervisor do
     end
 
     def start_child(name, state) do
-      #{:ok, pid} = ConsumerDynamicSupervisor.start_child([])
-      spec = {Consumer, {name, state} }
+      spec = {Consumer, {name, %{consumer_name: name}} }
       DynamicSupervisor.start_child(__MODULE__, spec)
-      # Process.monitor(pid)
     end
-
-    # receive do
-    #   msg -> msg
-    # end
     
   end

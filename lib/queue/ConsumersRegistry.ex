@@ -32,10 +32,6 @@ defmodule ConsumersRegistry do
       Enum.map(Registry.lookup(__MODULE__, queue), fn {_pid, value} -> value end)
     end
 
-    def get_consumers(consumer) do
-      Enum.map(Registry.lookup(__MODULE__, queue), fn {_pid, value} -> value end)
-    end
-
   end
 
 

@@ -70,7 +70,7 @@ defmodule MessageQueue do
     #Logger.info("dispatch_message  con consumidores  pubSub #{inspect(state)}")
     {msg, queue} = queue_pop_message(messages)
     consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
-    Enum.each(consumers_list, fn c -> send_message(msg, c) end)
+    Enum.each(consumers_list, fn c -> send_message(msg, c, state) end)
     update_remote_queues(:pop, msg)
     GenServer.cast(self(), :dispatch_messages)
     new_state = Map.put(state, :messages, queue)
@@ -80,7 +80,7 @@ defmodule MessageQueue do
     #Logger.info("dispatch_message  con consumidores  RR indice #{index} #{inspect(state)}")
     {msg, queue} = queue_pop_message(messages)
     consumer = Enum.at(consumers, index)
-    send_message(msg, consumer)
+    send_message(msg, consumer, state)
     update_remote_queues(:pop, msg)
     GenServer.cast(self(), :dispatch_messages)
     new_state = Map.put(state, :messages, queue)
@@ -144,21 +144,23 @@ defmodule MessageQueue do
     end)
   end
 
-  defp send_message(msg, %{mode: :transactional} = consumer) do
+  defp send_message(msg, %{mode: :transactional} = consumer, state) do
     # Logger.info(
     #   "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
     # )
     # TODO: cuando finaliza el envio del mensaje, avisar al queueManager,
     # luego de timeout reencolar el mensaje con los consumidores que restan
-    GenServer.cast(consumer.id, {:consume, msg.content, consumer.mode})
+    queueName = Map.get(state, :queueName)
+    GenServer.cast(consumer.id, {:consume, consumer.id, queueName, msg.content, consumer.mode})
   end
 
-  defp send_message(msg, %{mode: :not_transactional} = consumer) do
+  defp send_message(msg, %{mode: :not_transactional} = consumer, state) do
     # Logger.info(
     #   "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
     # )
     # TODO: cuando finaliza el envio del mensaje, avisar al queueManager
-    GenServer.cast(consumer.id, {:consume, msg.content, consumer.mode})
+    queueName = Map.get(state, :queueName)
+    GenServer.cast(consumer.id, {:consume, consumer.id, queueName, msg.content, consumer.mode})
   end
 
   defp queue_add_message(message, queue) do
@@ -191,6 +193,12 @@ defmodule MessageQueue do
   defp type(state) do
     type = Map.get(state, :type)
   end
+
+  def handle_cast({:acknowledge_message, queue_id, consumer, message}, state) do
+    Logger.info("handle_cast acknowledge_message #{queue_id} #{inspect consumer} #{inspect message}")
+    {:noreply, state}
+  end
+
   # ---------------- Cliente ------------------#
 
   def get(pid) do
@@ -209,8 +217,10 @@ defmodule MessageQueue do
   def remove_subscriber(pid, consumer) do
     GenServer.cast(pid, {:remove_subscriber, consumer})
   end
-end
 
-# GenServer.cast(pid,{:push, :soy_un_estado})
-# GenServer.call(pid, :get)
-# GenServer.call({pid, :"b@127.0.0.1"}, :get)
+  def acknowledge_message(queue_id, consumer, message) do
+    pid = QueuesRegistry.get_pid(queue_id)
+    GenServer.cast(pid, {:acknowledge_message, queue_id, consumer, message})
+  end
+
+end

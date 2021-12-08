@@ -39,6 +39,16 @@ defmodule ManagerNodesAgent do
     ManagerNodesAgent.update(put_in(new_state, [:queues, queue_id], node_id))
   end
 
+  def assign_queues_to_node(queues, node_id) do
+    Enum.each(queues, fn q -> assign_queue_to_node(q, node_id) end)
+  end
+
+  def get_queues_in_node() do
+    state = ManagerNodesAgent.get()
+    queues = Enum.filter(Map.get(state, :queues), fn {_, node_id} -> node_id == Node.self() end)
+    Enum.map(queues, fn {queue, _node} -> queue end)
+  end
+
   def get_lazier_node() do
     state = ManagerNodesAgent.get()
     min_node_by_queues_count(Map.get(state, :nodes))

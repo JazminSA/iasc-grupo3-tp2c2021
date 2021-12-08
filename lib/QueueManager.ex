@@ -27,6 +27,7 @@ defmodule QueueManager do
 
     Enum.each(Node.list(), fn node ->
       :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
+      :rpc.call(node, QueueManager, :sync_queues_from_node, [node])
     end)
 
     {:reply, pid, state}
@@ -76,6 +77,16 @@ defmodule QueueManager do
     {:noreply, state}
   end
 
+  def handle_cast({:sync_queues_from_node, node}, state) do
+    queues = GenServer.call({QueueManager, node}, :get_queues_in_node)
+    ManagerNodesAgent.assign_queues_to_node(queues, node)
+    {:noreply, state}
+  end
+
+  def handle_call(:get_queues_in_node, state) do
+    {:reply, ManagerNodesAgent.get_queues_in_node, state}
+  end
+
   def handle_info({:nodedown, node}, state) do
     Logger.info("Node #{node} is down")
     {:noreply, state}
@@ -83,17 +94,8 @@ defmodule QueueManager do
 
   def handle_info({:nodeup, node}, state) do
     Logger.info("Node #{node} is up")
+    ManagerNodesAgent.create_node(node)
     {:noreply, state}
-  end
-
-
-  # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
-  defp do_subscribe(queue_id, consumer_pid, mode) do
-    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
-    via_tuple = QueuesRegistry.get_pid(queue_id)
-
-    # TODO: Ejecutar esta linea solo si es el nodo activo
-    GenServer.cast(via_tuple, {:add_subscriber, %ConsumerStruct{id: consumer_pid}})
   end
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry

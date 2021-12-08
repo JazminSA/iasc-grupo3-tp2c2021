@@ -1,9 +1,10 @@
 #Commands
-
-# {:ok, pidRR} =  MessageQueueDynamicSupervisor.start_child(:MessageQueueRR, :round_robin, [])
-# {:ok, pidPS} =  MessageQueueDynamicSupervisor.start_child(:MessageQueuePS, :pub_sub, [])
-pidPS = QueueManager.create_queue(:MessageQueuePS, :pub_sub)
-#pidRR = QueueManager.create_queue(:MessageQueueRR, :round_robin)
+if length(Node.list()) < 1 do
+  # {:ok, pidRR} =  MessageQueueDynamicSupervisor.start_child(:MessageQueueRR, :round_robin, [])
+  # {:ok, pidPS} =  MessageQueueDynamicSupervisor.start_child(:MessageQueuePS, :pub_sub, [])
+  pidPS = QueueManager.create_queue(:MessageQueuePS, :pub_sub)
+  #pidRR = QueueManager.create_queue(:MessageQueueRR, :round_robin)
+end
 
 #creo consumers
 {:ok, pidConsumer} = Consumer.create()

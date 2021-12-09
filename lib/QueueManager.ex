@@ -13,11 +13,44 @@ defmodule QueueManager do
     {:ok, state}
   end
 
-  # Queues
+  # Sincronizar colas ya creadas entre nodos (debería poder moverlo al init)
+  def sync_queues do
+    # Enum.each(Node.list, fn node ->
+    #   GenServer.call({QueueManager, node}, {:get_queues, QueuesRegistry.list()})
+    # end)
+    # case Node.list do
+    #   [] -> {:ok, state}
+    #   _ ->
+    #     queues_from_another_node = GenServer.call({QueueManager, List.first(Node.list)}, :get_queues)
+    #     Logger.info "queues from another node #{inspect queues_from_another_node}"
+    # end
+    queues_from_another_node = GenServer.call({QueueManager, List.first(Node.list)}, :get_queues)
+    # Debería crear la cola en los nuevos nodos que van apareciendo. En realidad, no alcanzaría
+    # con volver a crearla son su nombre de fantasía y tipo (pubSub o RR) sino que también
+    # debería sincronizar su estado (mensajes), no?
+    # No puedo usar el mensaje :create así como está porque replica la cola en el resto de los nodos
+    # La funcionalidad que hay que implementar acá es replicar las colas cuando se levanta un nodo
+    # nuevo que NO estaba cuando la cola se creó en otro nodo. Si todos los nodos están activos
+    # cuando se crea una cola entonces la replicación ya está funcionando. Ójo que este caso
+    # puede estar pasando para otras cosas a replicar.
+    # Para evitar esta situación convendría sacar los create queue del .iex.exs y primero levantar
+    # todos los nodos manualmente y después si crear, a mano, la cola que queramos en cada nodo.
+    # De esa manera se ve, justamente, como la cola se va a ir replicando en los diferentes nodos.
+    Logger.info "queues from another node #{inspect queues_from_another_node}"
+  end
+
+  # def handle_call({:sync_queues, queues}) do
+  #   Logger.info "queues to sync #{inspect queues}"
+  # end
+
+  # Return all queues ids (via tuples)
   def handle_call(:get_queues, _from, state) do
-    # todo: how to get all distinct keys of ConsumersRegistry?
-    # keys = Registry.keys(ConsumersRegistry, self())
     {:reply, QueuesRegistry.list(), state}
+  end
+
+  # Return a specific queue id (via tuple) if exists
+  def handle_call({:get_queue, queue_name}, _from, state) do
+    {:reply, QueuesRegistry.check_queue_and_get(queue_name), state}
   end
 
   def handle_call({:create, queue_id, type}, _from, state) do
@@ -114,6 +147,10 @@ defmodule QueueManager do
 
   def get_queues() do
     GenServer.call(QueueManager, :get_queues)
+  end
+
+  def get_queue(queue_name) do
+    GenServer.call(QueueManager, {:get_queue, queue_name})
   end
 
   def create(queue_id, type) do

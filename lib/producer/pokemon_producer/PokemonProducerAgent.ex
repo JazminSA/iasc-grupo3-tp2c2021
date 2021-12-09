@@ -28,4 +28,9 @@ defmodule PokemonProdAgent do
     PokemonProdAgent.update(new_state)
     PokemonProdAgent.get()
   end
+
+  def queue_exists?(queue_id_to_find) do
+    Enum.any?(get_queue_ids(), fn queue_id -> queue_id == queue_id_to_find end)
+  end
+
 end

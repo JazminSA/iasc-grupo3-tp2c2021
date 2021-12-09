@@ -8,51 +8,79 @@ defmodule PokemonProducer do
   @fast_mode_ms 1000
 
   def start_link(_state) do
-    IO.puts("Starting PokemonProducer")
+    Logger.info("Starting PokemonProducer")
     HTTPoison.start() # Starting HTTP Client Process
     start_result = GenServer.start_link(__MODULE__, PokemonProdAgent.get(), name: __MODULE__)
-    GenServer.cast(__MODULE__, :prod)
+    cast_self_with_msg(:prod)
     start_result # {:ok, pid}
   end
 
   def init(pokemon_prod_state) do
-    IO.puts("Init PokemonProducer")
     {:ok, pokemon_prod_state}
   end
 
   def publish_to_all do
     Logger.info "Publishing to all queues"
-    GenServer.cast(__MODULE__, :produce_to)
+    new_queues = QueueManager.get_queues()
+    cast_self_with_msg({:produce_to, new_queues})
   end
 
-  def stop_publish do
+  def stop_publish_to_all do
     Logger.info "Stop publishing to all queues"
-    GenServer.cast(__MODULE__, :stop)
+    cast_self_with_msg(:stop)
   end
 
   # queue_id = [{:via, Registry, {QueuesRegistry, :<QueueName>}}]
-  def subscribe(queue_id) do # Para fines de prueba
-    GenServer.cast(__MODULE__, {:subs, queue_id})
+  def publish_to(queue_name) do
+    queue_id = QueueManager.get_queue(queue_name)
+    case queue_id do
+      :queue_not_found -> :queue_not_found
+      _ ->
+        Logger.info "Publishing to queue #{queue_name}"
+        cast_self_with_msg({:subs, queue_id})
+    end
   end
 
-  def unsubscribe(queue_id) do
-    GenServer.cast(__MODULE__, {:unsubs, queue_id})
+  def stop_publish_to(queue_name) do
+    queue_id = QueueManager.get_queue(queue_name)
+    case queue_id do
+      :queue_not_found ->
+        :queue_not_found
+      _ ->
+        if PokemonProdAgent.queue_exists?(queue_id) do
+          Logger.info "Stop publishing to queue #{queue_name}"
+          cast_self_with_msg({:unsubs, queue_id})
+        else
+          :queue_not_found
+        end
+    end
   end
 
-  def normal_mode() do
-    GenServer.cast(__MODULE__, :normal_mode)
+  def publish_msg_to(queue_name, pokemon_number) do
+    queue_id = QueueManager.get_queue(queue_name)
+    case queue_id do
+      :queue_not_found -> :queue_not_found
+      _ ->
+        Logger.info "Publishing msge to queue #{queue_name}"
+        pokemon = get_pokemon(pokemon_number)
+        GenServer.cast(queue_id, {:receive_message, pokemon})
+    end
   end
 
-  def slow_mode() do
-    GenServer.cast(__MODULE__, :slow_mode)
+  def normal_mode do
+    cast_self_with_msg(:normal_mode)
   end
 
-  def fast_mode() do
-    GenServer.cast(__MODULE__, :fast_mode)
+  def slow_mode do
+    cast_self_with_msg(:slow_mode)
+  end
+
+  def fast_mode do
+    cast_self_with_msg(:fast_mode)
   end
 
   def custom_mode(ms) do
-    GenServer.cast(__MODULE__, {:custom_mode, ms})
+    cast_self_with_msg({:custom_mode, ms})
   end
 
   def handle_cast(message, %PokemonProdState{queue_ids: queue_ids, prod_mode: mode}) do
@@ -63,12 +91,12 @@ defmodule PokemonProducer do
         {:noreply, update_and_get_state(queue_ids, mode)}
       :stop ->
         {:noreply, update_and_get_state([], mode)}
-      :produce_to ->
-        {:noreply, update_and_get_state(queue_ids ++ new_queues(), mode)}
+      {:produce_to, new_queues} ->
+        {:noreply, update_and_get_state(queue_ids ++ new_queues, mode)}
       {:subs, queue_id} ->
         {:noreply, update_and_get_state([queue_id | queue_ids], mode)}
-      {:unsubs, queue_name} ->
-        {:noreply, update_and_get_state(List.delete(queue_ids, queue_name), mode)}
+      {:unsubs, queue_id} ->
+        {:noreply, update_and_get_state(List.delete(queue_ids, queue_id), mode)}
       :normal_mode ->
         {:noreply, update_and_get_state(queue_ids, @normal_mode_ms)}
       :slow_mode ->
@@ -80,19 +108,20 @@ defmodule PokemonProducer do
     end
   end
 
+  defp cast_self_with_msg(message) do
+    GenServer.cast(__MODULE__, message)
+  end
+
   defp produce(queue_ids, mode) do
     Process.sleep(mode)
+    pokemon = get_pokemon(random_number())
     Enum.each(queue_ids, fn queue_id ->
-      GenServer.cast(queue_id, {:receive_message, get_pokemon(random_number())})
+      GenServer.cast(queue_id, {:receive_message, pokemon})
     end)
   end
 
-  defp random_number() do
+  defp random_number do
     Enum.random(1..150)
-  end
-
-  defp new_queues() do
-    QueueManager.get_queues()
   end
 
   defp update_and_get_state(new_queue_ids, new_mode) do

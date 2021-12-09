@@ -58,6 +58,12 @@ defmodule ManagerNodesAgent do
     min_node_by_queues_count(Map.get(state, :nodes))
   end
 
+  def get_second_lazier_node() do
+    state = ManagerNodesAgent.get()
+    sorted = Enum.sort_by(state.nodes, fn {_k, v} -> v end)
+    List.last(Enum.take(sorted, 2))
+  end
+
   def get_node_for_queue(queue_id) do
     state = ManagerNodesAgent.get()
     get_in(state, [:queues, queue_id])
@@ -72,7 +78,7 @@ defmodule ManagerNodesAgent do
   defp remove_node(node) do
     state = ManagerNodesAgent.get()
     {_v, nodes} = pop_in(state, [:nodes, node])
-    ManagerNodesAgent.update(node)
+    ManagerNodesAgent.update(nodes)
   end
 
   defp min_node_by_queues_count(nodes) when nodes == %{} do

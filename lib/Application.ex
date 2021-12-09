@@ -17,7 +17,8 @@ defmodule MQApplication do
         %{id: ConsumerDynamicSupervisor, start: {ConsumerDynamicSupervisor, :start_link, [[]]} },
         %{id: MessageQueueDynamicSupervisor, start: {MessageQueueDynamicSupervisor, :start_link, [[]]} },
         ConsumersRegistrySupervisor,
-        QueuesRegistrySupervisor
+        QueuesRegistrySupervisor,
+        PokemonProducer.Supervisor
       ]
 
       opts = [strategy: :one_for_one, name: MyApp.Supervisor]

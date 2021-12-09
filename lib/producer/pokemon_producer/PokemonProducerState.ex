@@ -1,3 +1,3 @@
-  defmodule PokemonProdState do
-    defstruct [:queue_ids, :prod_mode]
-  end
+defmodule PokemonProdState do
+  defstruct [:queue_ids, :prod_mode]
+end

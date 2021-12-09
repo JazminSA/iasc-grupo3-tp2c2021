@@ -129,7 +129,7 @@ defmodule PokemonProducer do
   end
 
   # id could be the pokemon name or number
-  defp get_pokemon(id) do
+  def get_pokemon(id) do
     response = HTTPoison.get!("https://pokeapi.co/api/v2/pokemon/#{id}")
     {_, pokemon} = Jason.decode(response.body)
     get_attr = fn attr -> Map.get(pokemon, attr) end

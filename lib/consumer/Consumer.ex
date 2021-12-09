@@ -46,13 +46,17 @@ defmodule Consumer do
     end
 
     defp restore_subscriptions([], name) do
+      Logger.info("Consumer #{name} with no subscriptions to restore")
+      register_create(name)
+    end
+    defp restore_subscriptions([], name, :next) do
       Logger.info("Consumer #{name} with no more subscriptions")
     end
     defp restore_subscriptions([subscription | subscriptions], name) do
       Logger.info("Consumer #{name} restoring subscription #{inspect subscription}")
       {queue, mode, subscribed_at} = subscription
       Consumer.subscribe(name, queue, mode, subscribed_at, :restored)
-      restore_subscriptions(subscriptions, name)
+      restore_subscriptions(subscriptions, name, :next)
     end
 
     ##################### Restoring subscriptions on reinitialize END #####################

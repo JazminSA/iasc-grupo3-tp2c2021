@@ -4,7 +4,7 @@ defmodule MessageQueueAgent do
 
   def start_link(name, state) do
     # Logger.info("start_link MessageQueueAgent #{inspect self()}")
-    Agent.start_link(fn -> state end, name: name)
+    Agent.start_link(fn -> state end, name: String.to_atom(Atom.to_string(name) <> "Agent"))
     # result = GenServer.start_link(__MODULE__, state, name: process_name(name))
     # result
   end

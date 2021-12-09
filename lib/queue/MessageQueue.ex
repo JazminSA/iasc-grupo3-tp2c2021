@@ -47,7 +47,7 @@ defmodule MessageQueue do
   end
 
   def handle_cast({:receive_message, message}, %{messages: messages} = state) do
-    # Logger.info("handle_cast receive_message")
+    Logger.info("handle_cast receive_message #{inspect(state)}")
     new_state = queue_add_message(message, state)
     {:noreply, new_state}
   end
@@ -59,9 +59,10 @@ defmodule MessageQueue do
   # end
 
   def handle_cast(:dispatch_messages, %{queueName: qname, messages: messages} = state) do
-    # Logger.info("dispatch_message #{inspect(state)}")
+    #Logger.info("dispatch_message #{inspect(state)}")
     cond do
       (ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() and length(consumers(qname)) > 0 and :queue.len(messages) > 0) ->
+      Logger.info("dispatch_message #{inspect(state)}")
       new_state = dispatch_messages(state)
       GenServer.cast(self(), :dispatch_messages)
       # Logger.info("dispatch_message dentro if #{inspect(new_state)}")
@@ -75,7 +76,7 @@ defmodule MessageQueue do
   defp dispatch_messages(
          %{queueName: qname, messages: messages, type: :round_robin, index: index} = state
        ) do
-    Logger.info("dispatch_message  con consumidores  RR #{inspect(state)}")
+    Logger.info("dispatch_message con consumidores RR #{inspect(state)}")
     consumers = consumers(qname)
     {msg, queue} = queue_pop_message(messages)
     consumer = Enum.at(consumers, index)
@@ -86,7 +87,7 @@ defmodule MessageQueue do
   end
 
   defp dispatch_messages(%{queueName: qname, messages: messages, type: :pub_sub} = state) do
-    Logger.info("dispatch_message  con consumidores  pubSub #{inspect(state)}")
+    Logger.info("dispatch_message con consumidores pubSub #{inspect(state)}")
     consumers = consumers(qname)
     {msg, queue} = queue_pop_message(messages)
     consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)

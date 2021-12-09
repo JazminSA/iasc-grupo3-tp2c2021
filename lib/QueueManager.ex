@@ -23,8 +23,8 @@ defmodule QueueManager do
   def handle_call({:create, queue_id, type}, _from, state) do
     # TODO: Vincular con Colas
     # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
-   {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-   Agent.update(pidAgent, fn state -> Map.put(state,:agentPid, pidAgent) end)
+    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+    Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
     # Logger.info("handle_call :create ")
     # {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
     {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
@@ -37,18 +37,23 @@ defmodule QueueManager do
     end)
 
     # {:reply, {pidQueue, pidAgent}, state}
-    {:reply, {pidQueue, pidAgent} , state}
+    {:reply, {pidQueue, pidAgent}, state}
   end
 
-def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do
+  def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do
     # TODO: Vincular con Colas
-    Logger.info("handle_call :create replicated")
-    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-    Agent.update(pidAgent, fn state -> Map.put(state,:agentPid, pidAgent) end)
-    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
-    ManagerNodesAgent.assign_queue_to_node(queue_id, destination_node)
-    {:reply, {pidQueue, pidAgent}, state}
-    
+    cond do
+      !Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id)) ->
+        Logger.info("handle_call :create replicated")
+        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+        Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
+        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+        ManagerNodesAgent.assign_queue_to_node(queue_id, destination_node)
+        {:reply, {pidQueue, pidAgent}, state}
+
+      true ->
+        {:reply, {}, state}
+    end
   end
 
   def handle_cast({:delete, _queue_id}, state) do
@@ -59,7 +64,7 @@ def handle_call({:create, queue_id, type, destination_node, :replicated}, _from,
 
   # Consumers
   def handle_cast({:subscribe, consumer_pid, queue_id, mode}, state) do
-    #Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}"
+    # Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}"
 
     # Propagate subscription to all connected nodes
     Enum.each(Node.list(), fn node ->
@@ -77,7 +82,7 @@ def handle_call({:create, queue_id, type, destination_node, :replicated}, _from,
   end
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id, mode}, state) do
-    #Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
+    # Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
     # Unsubscribe consumer from Registry
     ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
 
@@ -96,7 +101,7 @@ def handle_call({:create, queue_id, type, destination_node, :replicated}, _from,
   end
 
   def handle_call(:get_queues_in_node, state) do
-    {:reply, ManagerNodesAgent.get_queues_in_node, state}
+    {:reply, ManagerNodesAgent.get_queues_in_node(), state}
   end
 
   def handle_info({:nodedown, node}, state) do

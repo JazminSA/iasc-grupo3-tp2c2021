@@ -24,12 +24,13 @@ defmodule QueueManager do
     # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
    Agent.update(pidAgent, fn state -> Map.put(state,:agentPid, pidAgent) end)
-    Logger.info("handle_call :create ")
+    # Logger.info("handle_call :create ")
     # {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
     {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
     Logger.info("handle_call :create")
 
     Enum.each(Node.list(), fn node ->
+      Logger.info("handle_call :create replicated")
       :rpc.call(node, QueueManager, :create, [queue_id, type, :replicated])
     end)
 
@@ -39,6 +40,7 @@ defmodule QueueManager do
 
   def handle_call({:create, queue_id, type, :replicated}, _from, state) do
     # TODO: Vincular con Colas
+    Logger.info("handle_call :create replicated")
     {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
     Agent.update(pidAgent, fn state -> Map.put(state,:agentPid, pidAgent) end)
     {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])

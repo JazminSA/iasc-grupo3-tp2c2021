@@ -180,7 +180,7 @@ defmodule MessageQueue do
 
     Enum.each(Node.list(), fn node ->
       Logger.info("update_remote_queues #{node}")
-      # GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
+      GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
     end)
   end
 

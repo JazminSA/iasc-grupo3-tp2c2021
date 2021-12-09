@@ -63,16 +63,21 @@ defmodule QueueManager do
     {:noreply, state}
   end
 
-  def handle_cast({:unsubscribe, consumer_pid, queue_id, mode}, state) do
+  def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
     #Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
     # Unsubscribe consumer from Registry
-    ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
+
+    ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid) #FIXME: this is not unregistering consumer
 
     # Propagate subscription to all connected nodes
     Enum.each(Node.list(), fn node ->
-      GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, mode})
+      GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, :replicated})
     end)
+    {:noreply, state}
+  end
 
+  def handle_cast({:unsubscribe, consumer_pid, queue_id, :replicated}, state) do
+    ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
     {:noreply, state}
   end
 
@@ -107,7 +112,7 @@ defmodule QueueManager do
 
   # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
   defp do_subscribe(queue_id, consumer_pid, mode) do
-    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode)
+    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode) #FIXME: this is registering with key=qm pid instead of the queue
   end
 
   # ---------------- Cliente ------------------#

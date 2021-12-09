@@ -187,7 +187,24 @@ defmodule MessageQueue do
   defp consumers(state) do
     name = Map.get(state, :queueName)
     consumers = ConsumersRegistry.get_queue_consumers(name)
-    { length(consumers), consumers }
+    alive_consumers = filter_alive_consumers(consumers, name)
+    { length(alive_consumers), alive_consumers }
+  end
+
+  defp filter_alive_consumers([], name) do
+    ConsumersRegistry.get_queue_consumers(name)
+  end
+  defp filter_alive_consumers([consumer | consumers], name) do
+    pid = Map.get(consumer, :id)
+    case Process.alive?(pid) do
+      true -> filter_alive_consumers(consumers, name)
+      false -> 
+          Registry.unregister_match(ConsumersRegistry, name, pid)
+          filter_alive_consumers(consumers, name)
+      _ -> 
+        Logger.info("Remote consumer killed. Will be unregistered eventually")
+        filter_alive_consumers(consumers, name)
+    end
   end
 
   defp messages(state) do
@@ -203,8 +220,13 @@ defmodule MessageQueue do
     type = Map.get(state, :type)
   end
 
+<<<<<<< Updated upstream
   def handle_cast({:acknowledge_message, queue_id, consumer, message}, state) do
     Logger.info("handle_cast acknowledge_message #{queue_id} #{inspect consumer} #{inspect message}")
+=======
+  def handle_cast({:remove_subscriber, pid, consumer}, state) do
+    Registry.unregister_match(ConsumersRegistry, pid, %{"id"=>consumer})
+>>>>>>> Stashed changes
     {:noreply, state}
   end
 
@@ -223,8 +245,9 @@ defmodule MessageQueue do
     GenServer.cast(pid, {:add_subscriber, consumer})
   end
 
-  def remove_subscriber(pid, consumer) do
-    GenServer.cast(pid, {:remove_subscriber, consumer})
+  def remove_subscriber(queue_id, consumer) do
+    pid = QueuesRegistry.get_pid(queue_id)
+    GenServer.cast(pid, {:remove_subscriber, pid, consumer})
   end
 
   def acknowledge_message(queue_id, consumer, message) do

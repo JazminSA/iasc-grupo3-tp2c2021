@@ -44,30 +44,38 @@ defmodule QueueManager do
     {:noreply, state}
   end
 
-  # Consumers
+  ############################# Subscribe / Unsubscribe consumers INI #############################
+
   def handle_cast({:subscribe, consumer_pid, queue_id, mode}, state) do
-    #Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}"
-
-    # Propagate subscription to all connected nodes
-    Enum.each(Node.list(), fn node ->
-      GenServer.cast({QueueManager, node}, {:subscribe_replicate, consumer_pid, queue_id, mode})
-    end)
-
+    Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}")
     # Subscribe consumer
-    do_subscribe(queue_id, consumer_pid, mode)
+    MessageQueue.subscribe_consumer(queue_id, consumer_pid, mode)
+
+    replicate_subscribe(Node.list(), consumer_pid, queue_id, mode)
+    {:noreply, state}
+  end
+  def handle_cast({:subscribe, consumer_pid, queue_id, mode, :replicated}, state) do
+    Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id} [replicated]")
+    MessageQueue.subscribe_consumer(queue_id, consumer_pid, mode)
+
     {:noreply, state}
   end
 
-  def handle_cast({:subscribe_replicate, consumer_pid, queue_id, mode}, state) do
-    do_subscribe(queue_id, consumer_pid, mode)
-    {:noreply, state}
+  defp replicate_subscribe([], _, _, _) do
+  end
+  defp replicate_subscribe([node | nodes], consumer_pid, queue_id, mode) do
+    # Propagate subscription to all connected nodes
+    GenServer.cast({QueueManager, node}, {:subscribe, consumer_pid, queue_id, mode, :replicated})
+    replicate_subscribe(nodes, consumer_pid, queue_id, mode)
   end
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
-    #Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
-    # Unsubscribe consumer from Registry
+    Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
 
-    ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid) #FIXME: this is not unregistering consumer
+    # ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid) #FIXME: this is not unregistering consumer
+    # Unsubscribe consumer from Registry
+    MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
+    replicate_unsubscribe(Node.list(), consumer_pid, queue_id)
 
     # Propagate subscription to all connected nodes
     Enum.each(Node.list(), fn node ->
@@ -80,6 +88,21 @@ defmodule QueueManager do
     ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
     {:noreply, state}
   end
+
+  def handle_cast({:unsubscribe, consumer_pid, queue_id, :replicated}, state) do
+    Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id} [replicated]")
+    MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
+    {:noreply, state}
+  end
+  defp replicate_unsubscribe([], _, _) do
+  end
+  defp replicate_unsubscribe([node | nodes], consumer_pid, queue_id) do
+    # Propagate unsubscription to all connected nodes
+    GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, :replicated})
+    replicate_unsubscribe(nodes, consumer_pid, queue_id)
+  end
+
+  ############################# Subscribe / Unsubscribe consumers END #############################
 
   def handle_cast({:sync_queues_from_node, node}, state) do
     queues = GenServer.call({QueueManager, node}, :get_queues_in_node)
@@ -134,10 +157,12 @@ defmodule QueueManager do
   end
 
   def subscribe(consumer_pid, queue_id, mode) do
+    Logger.info("QueueManager subscribe #{inspect consumer_pid} to #{queue_id} as #{mode}")
     GenServer.cast(QueueManager, {:subscribe, consumer_pid, queue_id, mode})
   end
 
   def unsubscribe(consumer_pid, queue_id) do
+    Logger.info("QueueManager subscribe #{inspect consumer_pid} from #{queue_id}")
     GenServer.cast(QueueManager, {:unsubscribe, consumer_pid, queue_id})
   end
 end

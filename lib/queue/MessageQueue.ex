@@ -46,16 +46,33 @@ defmodule MessageQueue do
     {:noreply, new_state}
   end
 
+  ############################# Subscribe / Unsubscribe consumers INI #############################
+  def handle_cast({:subscribe_consumer, queue_id, consumer_pid, mode}, state) do
+    Logger.info("MessageQueue subscribe_consumer in registry #{inspect consumer_pid} to #{inspect queue_id} as #{mode}")
+    consumer = %{ id: consumer_pid, timestamp: :os.system_time(:milli_seconds), mode: mode }
+    Registry.register(ConsumersRegistry, queue_id, consumer)
+    {:noreply, state}
+  end
+  def handle_cast({:unsubscribe_consumer, queue_id, consumer_pid}, state) do
+    Logger.info("MessageQueue unsubscribe_consumer in registry #{inspect consumer_pid} to #{inspect queue_id}")
+    match = %{ id: consumer_pid }
+    Registry.unregister_match(ConsumersRegistry, queue_id, match)
+    {:noreply, state}
+  end
+
+
+  ############################# Subscribe / Unsubscribe consumers END #############################
+
   def handle_cast(:dispatch_messages, state) do
     cond do
       ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() ->
         { messages_length, messages } = messages(state)
         type = type(state)
         { consumers_length, consumers } = consumers(state)
-        # Logger.info("handle_cast dispatch_messages #{type} #{messages_length} #{consumers_length}")
+        #Logger.info("handle_cast dispatch_messages #{type} #{messages_length} #{consumers_length}")
         cond do
           messages_length == 0 ->
-            # Logger.info("dispatch_message no messages")
+            #Logger.info("dispatch_message no messages")
             GenServer.cast(self(), :dispatch_messages)
             {:noreply, state}
           type == :pub_sub ->
@@ -72,7 +89,7 @@ defmodule MessageQueue do
   end
 
   defp dispatch_messages(state, consumers, messages) do
-    #Logger.info("dispatch_message  con consumidores  pubSub #{inspect(state)}")
+    Logger.info("dispatch_message con consumidores pubSub #{inspect(state)} #{inspect(consumers)}")
     {msg, queue} = queue_pop_message(messages)
     consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
     Enum.each(consumers_list, fn c -> send_message(msg, c) end)
@@ -83,7 +100,7 @@ defmodule MessageQueue do
   end
 
   defp dispatch_messages(state, consumers, messages, index) do
-    #Logger.info("dispatch_message  con consumidores  RR indice #{index} #{inspect(state)}")
+    #Logger.info("dispatch_message con consumidores RR indice #{index} #{inspect(state)} #{inspect(consumers)}")
     {msg, queue} = queue_pop_message(messages)
     consumer = Enum.at(consumers, index)
     send_message(msg, consumer)
@@ -168,6 +185,7 @@ defmodule MessageQueue do
   end
 
   defp queue_add_message(message, queue) do
+    #Logger.info("queue_add_message #{inspect queue} #{inspect message}")
     msg = %Message{content: message, timestamp: :os.system_time(:milli_seconds)}
     update_remote_queues(:push, msg)
     queue = :queue.in(msg, queue)
@@ -176,7 +194,7 @@ defmodule MessageQueue do
 
   defp queue_pop_message(queue)
   do
-    #Logger.info("queue_pop_message Ambos")
+    #Logger.info("queue_pop_message #{inspect queue}")
     {{:value, head}, queue} = :queue.out(queue)
     # {head, queue} = :queue.out(queue) PROBAR ESTA LINEA SOLA
     {head, queue}
@@ -184,7 +202,8 @@ defmodule MessageQueue do
 
   defp consumers(state) do
     name = Map.get(state, :queueName)
-    consumers = ConsumersRegistry.get_queue_consumers(name)
+    key = process_name(name)
+    consumers = ConsumersRegistry.get_queue_consumers(key)
     { length(consumers), consumers }
   end
 
@@ -207,19 +226,18 @@ defmodule MessageQueue do
   end
 
   def receive_message(queue_id, message) do
-    pid = QueuesRegistry.get_pid(queue_id)
-    GenServer.cast(pid, {:receive_message, message})
+    GenServer.cast(process_name(queue_id), {:receive_message, message})
   end
 
-  def add_subscriber(pid, consumer) do
-    GenServer.cast(pid, {:add_subscriber, consumer})
+  def subscribe_consumer(queue_id, consumer_pid, mode) do
+    key = process_name(queue_id)
+    #Logger.info("MessageQueue: subscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
+    GenServer.cast(key, {:subscribe_consumer, key, consumer_pid, mode})
   end
 
-  def remove_subscriber(pid, consumer) do
-    GenServer.cast(pid, {:remove_subscriber, consumer})
+  def unsubscribe_consumer(queue_id, consumer_pid) do
+    key = process_name(queue_id)
+    #Logger.info("MessageQueue: unsubscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
+    GenServer.cast(key, {:unsubscribe_consumer, key, consumer_pid})
   end
 end
-
-# GenServer.cast(pid,{:push, :soy_un_estado})
-# GenServer.call(pid, :get)
-# GenServer.call({pid, :"b@127.0.0.1"}, :get)

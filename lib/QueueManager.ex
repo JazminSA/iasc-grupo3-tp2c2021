@@ -15,33 +15,22 @@ defmodule QueueManager do
 
   # Sincronizar colas ya creadas entre nodos (debería poder moverlo al init)
   def sync_queues do
-    # Enum.each(Node.list, fn node ->
-    #   GenServer.call({QueueManager, node}, {:get_queues, QueuesRegistry.list()})
-    # end)
-    # case Node.list do
-    #   [] -> {:ok, state}
-    #   _ ->
-    #     queues_from_another_node = GenServer.call({QueueManager, List.first(Node.list)}, :get_queues)
-    #     Logger.info "queues from another node #{inspect queues_from_another_node}"
-    # end
-    queues_from_another_node = GenServer.call({QueueManager, List.first(Node.list)}, :get_queues)
-    # Debería crear la cola en los nuevos nodos que van apareciendo. En realidad, no alcanzaría
-    # con volver a crearla son su nombre de fantasía y tipo (pubSub o RR) sino que también
-    # debería sincronizar su estado (mensajes), no?
-    # No puedo usar el mensaje :create así como está porque replica la cola en el resto de los nodos
-    # La funcionalidad que hay que implementar acá es replicar las colas cuando se levanta un nodo
-    # nuevo que NO estaba cuando la cola se creó en otro nodo. Si todos los nodos están activos
-    # cuando se crea una cola entonces la replicación ya está funcionando. Ójo que este caso
-    # puede estar pasando para otras cosas a replicar.
-    # Para evitar esta situación convendría sacar los create queue del .iex.exs y primero levantar
+    selected_node = Enum.random(Node.list)
+    active_queues_names = GenServer.call({QueueManager, selected_node}, :get_queues_names)
+    Logger.info "Active queues #{inspect active_queues_names} in node #{inspect selected_node}"
+    Enum.each(active_queues_names, fn queue_name ->
+      # Por ahora hardcodeo el tipo de la cola a :pub_sub
+      MessageQueueDynamicSupervisor.start_child(queue_name, :pub_sub, [])
+    end)
+    # Capaz convendría sacar los create queue del .iex.exs y primero levantar
     # todos los nodos manualmente y después si crear, a mano, la cola que queramos en cada nodo.
     # De esa manera se ve, justamente, como la cola se va a ir replicando en los diferentes nodos.
-    Logger.info "queues from another node #{inspect queues_from_another_node}"
   end
 
-  # def handle_call({:sync_queues, queues}) do
-  #   Logger.info "queues to sync #{inspect queues}"
-  # end
+  # Return all queues names (ex: [:MessageQueuePS])
+  def handle_call(:get_queues_names, _from, state) do
+    {:reply, QueuesRegistry.queue_names(), state}
+  end
 
   # Return all queues ids (via tuples)
   def handle_call(:get_queues, _from, state) do

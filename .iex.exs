@@ -28,7 +28,6 @@ Consumer.subscribe(pidConsumer3, :MessageQueueRR, :not_transactional)
 
 #Vincular producer a una cola / producer enviar mensaje
 #Producer.publish(:MessageQueuePS, %{:message => "first_message"})
-PokemonProducer.Supervisor.start_link([])
 # PokemonProducer.publish()
 
 :observer.start

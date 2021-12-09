@@ -1,12 +1,13 @@
 defmodule PokemonProducer do
   use GenServer
+  require Logger
 
   # miliseconds producer waitness
   @normal_mode_ms 5000
   @slow_mode_ms 10000
   @fast_mode_ms 1000
 
-  def start_link(pokemon_prod_state) do
+  def start_link(_state) do
     IO.puts("Starting PokemonProducer")
     HTTPoison.start() # Starting HTTP Client Process
     start_result = GenServer.start_link(__MODULE__, PokemonProdAgent.get(), name: __MODULE__)
@@ -19,18 +20,23 @@ defmodule PokemonProducer do
     {:ok, pokemon_prod_state}
   end
 
-  def publish() do
+  def publish_to_all do
+    Logger.info "Publishing to all queues"
     GenServer.cast(__MODULE__, :produce_to)
   end
 
-  # Deprecated
-  def subscribe(queue_pid) do # Para fines de prueba
-    GenServer.cast(__MODULE__, {:subs, queue_pid})
+  def stop_publish do
+    Logger.info "Stop publishing to all queues"
+    GenServer.cast(__MODULE__, :stop)
   end
 
-  # Deprecated
-  def unsubscribe(queue_pid) do
-    GenServer.cast(__MODULE__, {:unsubs, queue_pid})
+  # queue_id = [{:via, Registry, {QueuesRegistry, :<QueueName>}}]
+  def subscribe(queue_id) do # Para fines de prueba
+    GenServer.cast(__MODULE__, {:subs, queue_id})
+  end
+
+  def unsubscribe(queue_id) do
+    GenServer.cast(__MODULE__, {:unsubs, queue_id})
   end
 
   def normal_mode() do
@@ -55,12 +61,14 @@ defmodule PokemonProducer do
         produce(queue_ids, mode)
         GenServer.cast(__MODULE__, :prod)
         {:noreply, update_and_get_state(queue_ids, mode)}
+      :stop ->
+        {:noreply, update_and_get_state([], mode)}
       :produce_to ->
         {:noreply, update_and_get_state(queue_ids ++ new_queues(), mode)}
       {:subs, queue_id} ->
         {:noreply, update_and_get_state([queue_id | queue_ids], mode)}
-      {:unsubs, queue_id} ->
-        {:noreply, update_and_get_state(List.delete(queue_ids, queue_id), mode)}
+      {:unsubs, queue_name} ->
+        {:noreply, update_and_get_state(List.delete(queue_ids, queue_name), mode)}
       :normal_mode ->
         {:noreply, update_and_get_state(queue_ids, @normal_mode_ms)}
       :slow_mode ->

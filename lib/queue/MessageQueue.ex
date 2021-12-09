@@ -60,16 +60,16 @@ defmodule MessageQueue do
 
   def handle_cast(:dispatch_messages, %{queueName: qname, messages: messages} = state) do
     # Logger.info("dispatch_message #{inspect(state)}")
-    if (length(consumers(qname)) > 0 and :queue.len(messages) > 0) do
+    cond do
+      (ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() and length(consumers(qname)) > 0 and :queue.len(messages) > 0) ->
       new_state = dispatch_messages(state)
       GenServer.cast(self(), :dispatch_messages)
       # Logger.info("dispatch_message dentro if #{inspect(new_state)}")
       {:noreply, new_state}
-    else
-      GenServer.cast(self(), :dispatch_messages)
-      # Logger.info("dispatch_message fuera else #{inspect(state)}")
-      {:noreply, state}
-    end
+      true ->
+        GenServer.cast(self(), :dispatch_messages)
+        {:noreply, state}
+      end
   end
 
   defp dispatch_messages(

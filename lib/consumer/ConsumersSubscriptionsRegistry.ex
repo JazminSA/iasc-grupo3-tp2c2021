@@ -24,23 +24,12 @@ defmodule ConsumersSubscriptionsRegistry do
 
     def create(name) do
       Logger.info("ConsumersSubscriptionsRegistry create #{name} in #{Node.self}")
-      # Registry.register(__MODULE__, name,  {})
-      # replicate_create(Node.list, name)
+      created_at = :os.system_time(:milli_seconds)
+      tuple = {}
+      tuple = Tuple.append(tuple, created_at)
+
+      Registry.register(__MODULE__, name, tuple)
     end
-    # def create(name, :replicated) do
-    #   Logger.info("ConsumersSubscriptionsRegistry [replicated] create #{name} ini in #{Node.self}")
-    #   Registry.register(__MODULE__, name,  %{})
-    #   Logger.info("ConsumersSubscriptionsRegistry [replicated] create #{name} end")
-    # end
-    # defp replicate_create([], name) do
-    #   Logger.info("ConsumersSubscriptionsRegistry replicate_create #{name} completed in #{Node.self}")
-    #   :ok
-    # end
-    # defp replicate_create([node | nodes], name) do
-    #   Logger.info("ConsumersSubscriptionsRegistry replicate_create #{name} in #{inspect node} in #{Node.self}")
-    #   :rpc.call(node, __MODULE__, :create, [name, :replicated])
-    #   replicate_create(nodes, name)
-    # end
     ##########################################
 
     ##################### Subscribing consumer to queue and replicating subscribe in registry
@@ -52,22 +41,8 @@ defmodule ConsumersSubscriptionsRegistry do
       tuple = Tuple.append(tuple, mode)
       tuple = Tuple.append(tuple, subscribed_at)
       Registry.register(__MODULE__, consumer,  tuple)
-
-      # replicate_subscribe(Node.list, consumer, queue, mode, timestamp)
     end
-    # def subscribe(consumer, queue, mode, timestamp, :replicated) do
-    #   Logger.info("ConsumersSubscriptionsRegistry [replicated]: subscribing #{inspect consumer} to #{queue} as #{mode} in #{Node.self}")
-    #   Registry.register(__MODULE__, consumer, %{ queue: queue, mode: mode, subscribed_at: timestamp })
-    # end
-    # defp replicate_subscribe([], consumer, queue, mode, _) do
-    #   Logger.info("ConsumersSubscriptionsRegistry replicate_subscribe #{consumer} #{queue} #{mode} completed")
-    #   :ok
-    # end
-    # defp replicate_subscribe([node | nodes], consumer, queue, mode, timestamp) do
-    #   Logger.info("ConsumersSubscriptionsRegistry replicate_subscribe #{consumer} #{queue} #{mode} in #{inspect node}")
-    #   :rpc.call(node, __MODULE__, :subscribe, [consumer, queue, mode, timestamp, :replicated])
-    #   replicate_subscribe(nodes, consumer, queue, mode, timestamp)
-    # end
+
     ##########################################
 
     ##################### Restoring consumers subscriptions from registry
@@ -108,7 +83,8 @@ defmodule ConsumersSubscriptionsRegistry do
 
     def get_consumer_subscriptions(consumer) do
       Logger.info("ConsumersSubscriptionsRegistry get_consumer_subscriptions #{consumer}")
-      Enum.map(Registry.lookup(__MODULE__, consumer), fn {_pid, value} -> value end)
+      #Enum.map(Registry.lookup(__MODULE__, consumer), fn {_pid, value} -> value end)
+      Enum.map(Registry.match(__MODULE__, consumer, {:_, :_, :_}), fn {_pid, value} -> value end)
     end
 
     ##########################################

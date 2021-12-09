@@ -5,7 +5,6 @@ defmodule Consumer do
     #---------------- Servidor ------------------#
 
     def start_link(name, state) do
-      # TODO: Ver como agregar datos de control: A que colas estoy suscripto, cuantos msjs recibi
       GenServer.start_link(__MODULE__, state, name: name)
     end
 
@@ -13,7 +12,7 @@ defmodule Consumer do
       %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
     end
 
-    #TODO: if we have only one node, reinitilized consumers wont be able to recover subscriptions
+    #FIXME: if we have only one node, reinitilized consumers wont be able to recover subscriptions
     def init(state) do
       name = Map.get(state, :consumer_name)
       replicated = Map.get(state, :replicated)
@@ -96,7 +95,6 @@ defmodule Consumer do
 
     def handle_cast({:subscribe, name, queue_id, mode, suscribed_at, :replicated}, state) do
       Logger.info("Consumer [replicated] #{name} subscribing to #{queue_id} with #{mode} in #{Node.self}")
-      QueueManager.subscribe(self(), queue_id, mode)
       ConsumersSubscriptionsRegistry.subscribe(name, queue_id, mode, suscribed_at)
       {:noreply, state}
     end
@@ -117,7 +115,7 @@ defmodule Consumer do
 
     def handle_cast({:unsubscribe, name, queue_id}, state) do
       Logger.info("Consumer unsubscribing from #{queue_id} in #{Node.self}")
-      # QueueManager.unsubscribe(self(), queue_id)
+      QueueManager.unsubscribe(self(), queue_id)
       Registry.unregister_match(ConsumersSubscriptionsRegistry, name, {queue_id,:_, :_})
       replicate_unsubscribe(Node.list, name, queue_id)
       {:noreply, state}
@@ -125,7 +123,6 @@ defmodule Consumer do
 
     def handle_cast({:unsubscribe, name, queue_id, :replicated}, state) do
       Logger.info("Consumer [replicated] unsubscribing from #{queue_id} in #{Node.self}")
-      # QueueManager.unsubscribe(self(), queue_id)
       Registry.unregister_match(ConsumersSubscriptionsRegistry, name, {queue_id,:_, :_})
       {:noreply, state}
     end
@@ -178,7 +175,7 @@ defmodule Consumer do
     end
 
     def create(name) do
-      ConsumerDynamicSupervisor.start_child(name, %{consumerName: name, replicated: false})
+      ConsumerDynamicSupervisor.start_child(name, %{consumerName: name})
       GenServer.cast(name, {:create, name})
     end
     def create(name, :replicated) do

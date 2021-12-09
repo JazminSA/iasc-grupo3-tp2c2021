@@ -11,7 +11,7 @@ defmodule MQApplication do
         ]
       ]
       children = [
-        {Cluster.Supervisor, [topologies, [name: MyApp.ClusterSupervisor]]},
+        {Cluster.Supervisor, [topologies, [name: MQApplication.ClusterSupervisor]]},
         QueueManagerSupervisor,
         ProducerSupervisor,
         %{id: ConsumerDynamicSupervisor, start: {ConsumerDynamicSupervisor, :start_link, [[]]} },
@@ -21,7 +21,7 @@ defmodule MQApplication do
         ConsumersSubscriptionsRegistrySupervisor
       ]
 
-      opts = [strategy: :one_for_one, name: MyApp.Supervisor]
+      opts = [strategy: :one_for_one, name: MQApplication.Supervisor]
       Supervisor.start_link(children, opts)
     end
   end

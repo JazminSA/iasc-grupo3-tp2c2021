@@ -25,7 +25,7 @@ defmodule ConsumersRegistry do
 
     def unsubscribe_consumer(queue, pid) do
       # value pid should be added to list
-      Registry.unregister_match(__MODULE__, queue, pid)
+      Registry.unregister_match(__MODULE__, queue, %{"id"=>pid}) #FIXME
     end
 
     def get_queue_consumers(queue) do

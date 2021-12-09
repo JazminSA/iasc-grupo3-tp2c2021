@@ -47,23 +47,28 @@ defmodule MessageQueue do
   end
 
   def handle_cast(:dispatch_messages, state) do
-    # Logger.info("handle_cast dispatch_messages")
-    { messages_length, messages } = messages(state)
-    type = type(state)
-    { consumers_length, consumers } = consumers(state)
-    # Logger.info("handle_cast dispatch_messages #{type} #{messages_length} #{consumers_length}")
     cond do
-      messages_length == 0 -> 
-        # Logger.info("dispatch_message no messages")
+      ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() ->
+        { messages_length, messages } = messages(state)
+        type = type(state)
+        { consumers_length, consumers } = consumers(state)
+        # Logger.info("handle_cast dispatch_messages #{type} #{messages_length} #{consumers_length}")
+        cond do
+          messages_length == 0 ->
+            # Logger.info("dispatch_message no messages")
+            GenServer.cast(self(), :dispatch_messages)
+            {:noreply, state}
+          type == :pub_sub ->
+            new_state = dispatch_messages(state, consumers, messages)
+            {:noreply, new_state}
+          type == :round_robin ->
+            new_state = dispatch_messages(state, consumers, messages, index(state))
+            {:noreply, new_state}
+        end
+      true ->
         GenServer.cast(self(), :dispatch_messages)
         {:noreply, state}
-      type == :pub_sub -> 
-        new_state = dispatch_messages(state, consumers, messages)
-        {:noreply, new_state}
-      type == :round_robin -> 
-        new_state = dispatch_messages(state, consumers, messages, index(state))
-        {:noreply, new_state}
-    end
+      end
   end
 
   defp dispatch_messages(state, consumers, messages) do
@@ -76,6 +81,7 @@ defmodule MessageQueue do
     new_state = Map.put(state, :messages, queue)
     new_state
   end
+
   defp dispatch_messages(state, consumers, messages, index) do
     #Logger.info("dispatch_message  con consumidores  RR indice #{index} #{inspect(state)}")
     {msg, queue} = queue_pop_message(messages)
@@ -138,10 +144,10 @@ defmodule MessageQueue do
   defp update_remote_queues(operation, msg) do
     #Logger.info("update_remote_queues AMBOS #{operation}")
 
-    Enum.each(Node.list(), fn node ->
-      Logger.info("update_remote_queues #{node}")
-      #GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
-    end)
+    # Enum.each(Node.list(), fn node ->
+    #   Logger.info("update_remote_queues #{node}")
+    #   #GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
+    # end)
   end
 
   defp send_message(msg, %{mode: :transactional} = consumer, state) do
@@ -183,13 +189,16 @@ defmodule MessageQueue do
     consumers = ConsumersRegistry.get_queue_consumers(name)
     { length(consumers), consumers }
   end
+
   defp messages(state) do
     messages = Map.get(state, :messages)
     { :queue.len(messages), messages }
   end
+
   defp index(state) do
     index = Map.get(state, :index)
   end
+
   defp type(state) do
     type = Map.get(state, :type)
   end

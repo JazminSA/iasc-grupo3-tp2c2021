@@ -140,8 +140,9 @@ defmodule Consumer do
 
     ##################### Consuming and acknowledge
 
-    def handle_cast({:consume, name, queue, message, mode}, state) do
-      Logger.info("Consumer #{inspect self()}: Received #{inspect name} #{inspect message} #{inspect mode} from #{queue}")
+    def handle_cast({:consume, pid, queue, message, mode}, state) do
+      [name | _] = Process.info(pid);
+      Logger.info("Consumer #{name} #{inspect pid}: Received #{inspect message} #{mode} from #{queue}")
       cond do
         mode == :transactional -> acknowledge(name, queue, message)
         mode == :not_transactional ->  {:noreply, state}
@@ -149,8 +150,8 @@ defmodule Consumer do
     end
 
     defp acknowledge(name, queue, message) do
-      Logger.info("Consumer #{name} acknowledge message #{inspect message} to #{queue}")
-      MessageQueue.acknowledge_message(queue, name, message)
+      Logger.info("Consumer #{name} acknowledge message to #{queue}")
+      #MessageQueue.acknowledge_message(queue, name, message)
       :ok
     end
 

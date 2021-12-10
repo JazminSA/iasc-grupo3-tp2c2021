@@ -4,7 +4,7 @@ defmodule MessageQueue do
   # ---------------- Servidor ------------------#
 
   def start_link(name, pidAgent) do
-   # Logger.info("MessageQueue start_link: #{inspect(pidAgent)}")
+    # Logger.info("MessageQueue start_link: #{inspect(pidAgent)}")
 
     result =
       GenServer.start_link(__MODULE__, Agent.get(pidAgent, fn state -> state end),
@@ -15,7 +15,7 @@ defmodule MessageQueue do
   end
 
   def child_spec({name, state}) do
-    #Logger.info("MessageQueue child_spec: #{inspect(state)}")
+    # Logger.info("MessageQueue child_spec: #{inspect(state)}")
 
     %{
       id: name,
@@ -29,7 +29,7 @@ defmodule MessageQueue do
     do: {:via, Registry, {QueuesRegistry, name}}
 
   def init(state) do
-    #Logger.info("MessageQueue Queue final stateingreso: #{inspect(state)}")
+    # Logger.info("MessageQueue Queue final stateingreso: #{inspect(state)}")
 
     # agent_add_element(state, :messages, restored_messages)
     type = agent_get_element(state, :type)
@@ -102,9 +102,11 @@ defmodule MessageQueue do
 
     cond do
       length(consumers(state.queueName)) < 1 and state.type == :pub_sub ->
-        # Logger.info(
-        #   "La cola #{inspect state.queueName} es de tipo Pub_Sub, no permite mensajes sin consumidores registrados. Se desecha mensaje #{inspect message}"
-        # )
+        Logger.info(
+          "La cola #{inspect(state.queueName)} es de tipo Pub_Sub, no permite mensajes sin consumidores registrados. Se desecha mensaje #{inspect(message)}",
+          ansi_color: :yellow
+        )
+
         {:noreply, state}
 
       true ->

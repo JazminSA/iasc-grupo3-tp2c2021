@@ -19,7 +19,7 @@ defmodule Consumer do
 
       cond do
         replicated == true ->
-          # Logger.info("Consumer #{name} [replicated] initialize in #{Node.self}")
+          #Logger.info("Consumer #{name} [replicated] initialize in #{Node.self}")
         true ->
           subscriptions = get_consumer_subscriptions(Node.list, name)
           # Logger.info("Consumer #{name} initialize in #{Node.self} with subscriptions: #{inspect subscriptions}")

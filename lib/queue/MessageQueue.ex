@@ -75,7 +75,7 @@ defmodule MessageQueue do
     active = ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() 
     consumers_l = length(consumers(qname))
     messages_l = :queue.len(messages)
-    Process.sleep(1500)
+    Process.sleep(500)
     # Logger.info("dispatch_message #{inspect(state)} #{active} #{messages_l} #{consumers_l} ")
     cond do
       (

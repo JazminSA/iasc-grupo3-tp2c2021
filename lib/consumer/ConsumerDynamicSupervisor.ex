@@ -9,9 +9,8 @@ defmodule ConsumerDynamicSupervisor do
       DynamicSupervisor.init(strategy: :one_for_one)
     end
 
-    def start_child(state) do
-      #{:ok, pid} = ConsumerDynamicSupervisor.start_child([])
-      spec = {Consumer, state}
+    def start_child(name, state) do
+      spec = {Consumer, {name, %{consumer_name: name}} }
       DynamicSupervisor.start_child(__MODULE__, spec)
     end
   end

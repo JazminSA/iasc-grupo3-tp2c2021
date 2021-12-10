@@ -141,9 +141,9 @@
 # ######################################################################
 
 ### BORRADOR
-if length(Node.list()) < 1 do
-  {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
-  # Consumer.create(:Consumer1)
-  # Consumer.subscribe(:Consumer1, :MessageQueuePS, :not_transactional)
-end
+# if length(Node.list()) < 1 do
+#   {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
+#   # Consumer.create(:Consumer1)
+#   # Consumer.subscribe(:Consumer1, :MessageQueuePS, :not_transactional)
+# end
 

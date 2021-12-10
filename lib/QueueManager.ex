@@ -35,42 +35,30 @@ defmodule QueueManager do
   ############################# Get queues info from QueuesRegistry END #############################
 
   def handle_call({:create, queue_id, type}, _from, state) do
-    # TODO: Vincular con Colas
-    cond do
-      !Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id)) ->
-        # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
-        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-        Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
-        # Logger.info("handle_call :create ")
-        # {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
-        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-        Logger.info("handle_call :create")
+    Logger.info("handle_call :create_queue_in_system")
+    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+    Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
+    Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
+    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+    destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
-        destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
+    Enum.each(Node.list(), fn node ->
+      :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
+    end)
 
-        Enum.each(Node.list(), fn node ->
-          :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
-        end)
-        {:reply, {pidQueue, pidAgent}, state}
-      true ->
-      {:reply, {}, state}
-    end
+    {:reply, {pidQueue, pidAgent}, state}
   end
 
   def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do
     # TODO: Vincular con Colas
-    cond do
-      !Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id)) ->
-        Logger.info("handle_call :create replicated")
-        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-        Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
-        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-        ManagerNodesAgent.assign_queue_to_node(queue_id, destination_node)
-        {:reply, {pidQueue, pidAgent}, state}
+    Logger.info("handle_call :create_queue_in_system")
+    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+    Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
+    Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
+    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+    destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
-      true ->
-        {:reply, {}, state}
-    end
+    {:reply, {pidQueue, pidAgent}, state}
   end
 
   def handle_cast({:delete, _queue_id}, state) do
@@ -89,6 +77,7 @@ defmodule QueueManager do
     replicate_subscribe(Node.list(), consumer_pid, queue_id, mode)
     {:noreply, state}
   end
+
   def handle_cast({:subscribe, consumer_pid, queue_id, mode, :replicated}, state) do
     Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id} [replicated]")
     MessageQueue.subscribe_consumer(queue_id, consumer_pid, mode)
@@ -98,12 +87,12 @@ defmodule QueueManager do
 
   defp replicate_subscribe([], _, _, _) do
   end
+
   defp replicate_subscribe([node | nodes], consumer_pid, queue_id, mode) do
     # Propagate subscription to all connected nodes
     GenServer.cast({QueueManager, node}, {:subscribe, consumer_pid, queue_id, mode, :replicated})
     replicate_subscribe(nodes, consumer_pid, queue_id, mode)
   end
-
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
     Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
@@ -116,6 +105,7 @@ defmodule QueueManager do
     Enum.each(Node.list(), fn node ->
       GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, :replicated})
     end)
+
     {:noreply, state}
   end
 
@@ -129,8 +119,10 @@ defmodule QueueManager do
     MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
     {:noreply, state}
   end
+
   defp replicate_unsubscribe([], _, _) do
   end
+
   defp replicate_unsubscribe([node | nodes], consumer_pid, queue_id) do
     # Propagate unsubscription to all connected nodes
     GenServer.cast({QueueManager, node}, {:unsubscribe, consumer_pid, queue_id, :replicated})
@@ -235,12 +227,12 @@ defmodule QueueManager do
   end
 
   def subscribe(consumer_pid, queue_id, mode) do
-    Logger.info("QueueManager subscribe #{inspect consumer_pid} to #{queue_id} as #{mode}")
+    Logger.info("QueueManager subscribe #{inspect(consumer_pid)} to #{queue_id} as #{mode}")
     GenServer.cast(QueueManager, {:subscribe, consumer_pid, queue_id, mode})
   end
 
   def unsubscribe(consumer_pid, queue_id) do
-    Logger.info("QueueManager unsubscribe #{inspect consumer_pid} from #{queue_id}")
+    Logger.info("QueueManager unsubscribe #{inspect(consumer_pid)} from #{queue_id}")
     GenServer.cast(QueueManager, {:unsubscribe, consumer_pid, queue_id})
   end
 

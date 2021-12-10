@@ -100,8 +100,10 @@ defmodule MessageQueue do
     consumer = Enum.at(consumers, index)
     send_message(msg, consumer, state)
     update_remote_queues(:pop, msg, state)
-    agent_update_element(state, :messages, queue)
-    new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+
+    new_index = new_index(length(consumers), index)
+    new_state = agent_update_element(state, :index, new_index)
+    new_state = agent_update_element(new_state, :messages, queue)
   end
 
   defp dispatch_messages(%{queueName: qname, messages: messages, type: :pub_sub} = state) do
@@ -153,12 +155,11 @@ defmodule MessageQueue do
         %{queueName: qname, messages: queue, index: index} = state
       ) 
       do
-      consumers = consumers(qname)
       Logger.info("update_queue push  RR indice #{index}")
-      queue = :queue.in(message, queue)
 
-      new_state = agent_update_element(state, :index, new_index(length(consumers), index))
-      new_state = agent_update_element(new_state, :messages, queue)
+      consumers = consumers(qname)
+      queue = :queue.in(message, queue)
+      new_state = agent_update_element(state, :messages, queue)
 
       {:noreply, new_state}
   end
@@ -167,10 +168,10 @@ defmodule MessageQueue do
     {:update_queue, :pop, message},
     %{queueName: qname, messages: queue, index: index} = state
   ) do
-    Logger.info("update_queue pop  RR indice #{index}")
     consumers = consumers(qname)
-    new_state = queue_delete_message(state, message)
-    new_state = agent_update_element(new_state, :index, new_index(length(consumers), index))
+    new_index = new_index(length(consumers), index)
+    new_state = agent_update_element(state, :index, new_index)
+    new_state = queue_delete_message(new_state, message)
 
     {:noreply, new_state}
   end

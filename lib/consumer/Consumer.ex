@@ -187,8 +187,8 @@ defmodule Consumer do
 
     def handle_cast({:consume, pid, queue, message, mode}, state) do
       [{_, name} | _] = Process.info(pid);
-      Logger.info("-------------> Consumer #{name} #{inspect pid} - #{mode} from #{queue} in node #{Node.self}")
-      Logger.info("Receiving message ...")
+      Logger.info("-------------> Consumer #{name} #{inspect pid} - #{mode} from #{queue} in node #{Node.self}", ansi_color: :green)
+      Logger.info("Receiving message ...", ansi_color: :green)
       Logger.info("#{inspect message}", ansi_color: :green)
       cond do
         mode == :transactional -> acknowledge(name, queue, message, state)

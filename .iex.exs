@@ -47,7 +47,7 @@
 # Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 
 ####### Producer send messages on demand #######
-## OBSOLETE Producer.publish(:MessageQueueRR, %{:message => :msg1})
+##  Producer.publish(:MessageQueueRR, %{:message => :msg1})
 # ManagerNodesAgent.get
 # [Node active] PokemonProducer.publish_msg_to(:MessageQueuePS, "pikachu")
 # [Node active] PokemonProducer.publish_msg_to(:MessageQueueRR, "charmander")
@@ -75,8 +75,6 @@
 # Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 
 :observer.start
-
-
 
 ########### Other usefull commands ###########
 # export ERL_AFLAGS="-kernel shell_history enabled"

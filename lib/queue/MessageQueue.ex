@@ -169,7 +169,7 @@ defmodule MessageQueue do
   ) do
     Logger.info("update_queue pop  RR indice #{index}")
     consumers = consumers(qname)
-    new_state = queue_delete_message(state, queue)
+    new_state = queue_delete_message(state, message)
     new_state = agent_update_element(new_state, :index, new_index(length(consumers), index))
 
     {:noreply, new_state}
@@ -194,7 +194,7 @@ defmodule MessageQueue do
   
   def handle_cast({:update_queue, :pop, message}, %{messages: queue} = state) do
     Logger.info("update_queue pop  PS ")
-    new_state = queue_delete_message(state, queue)
+    new_state = queue_delete_message(state, message)
     {:noreply, new_state}
   end
 
@@ -207,8 +207,9 @@ defmodule MessageQueue do
   end
 
   defp queue_delete_message(%{messages: queue} = state, msg) do
-    Logger.info("queue_delete_message")
+    Logger.info("queue_delete_message #{inspect queue} #{inspect msg}")
     queue = :queue.delete(msg, queue)
+    Logger.info("queue_delete_message after delete #{inspect queue}")
     agent_update_element(state, :messages, queue)
   end
 

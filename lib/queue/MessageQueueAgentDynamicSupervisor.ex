@@ -15,7 +15,7 @@ defmodule MessageQueueAgentDynamicSupervisor do
     def start_child(name, type, state) do
       Logger.info("start_child supervisor ")
       # {:ok, pid} =  MessageQueueDynamicSupervisor.start_child(:MessageQueue1, :pub_sub, [])
-      spec = {MessageQueueAgent, {name, %{queueName: name, type: type}} }
+      spec = {MessageQueueAgent, {name, %{queueName: name, type: type, active: true}} }
       Logger.info("start_child supervisor ")
       DynamicSupervisor.start_child(__MODULE__, spec)
     end

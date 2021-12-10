@@ -41,7 +41,7 @@ defmodule MessageQueue do
   def handle_cast({:receive_message, message}, state) do
     #Logger.info("handle_cast receive_message")
     { _, messages } = messages(state)
-    { length, new_messages } = queue_add_message(message, messages)
+    { length, new_messages } = queue_add_message(message, messages, state)
     new_state = Map.put(state, :messages, new_messages)
     {:noreply, new_state}
   end
@@ -93,7 +93,7 @@ defmodule MessageQueue do
     {msg, queue} = queue_pop_message(messages)
     consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
     Enum.each(consumers_list, fn c -> send_message(msg, c, state) end)
-    update_remote_queues(:pop, msg)
+    update_remote_queues(:pop, msg, state)
     GenServer.cast(self(), :dispatch_messages)
     new_state = Map.put(state, :messages, queue)
     new_state
@@ -104,7 +104,7 @@ defmodule MessageQueue do
     {msg, queue} = queue_pop_message(messages)
     consumer = Enum.at(consumers, index)
     send_message(msg, consumer, state)
-    update_remote_queues(:pop, msg)
+    update_remote_queues(:pop, msg, state)
     GenServer.cast(self(), :dispatch_messages)
     new_state = Map.put(state, :messages, queue)
     new_state = Map.put(new_state, :index, new_index(length(consumers), index))
@@ -158,12 +158,15 @@ defmodule MessageQueue do
     queue = :queue.delete(msg, queue)
   end
 
-  defp update_remote_queues(operation, msg) do
+  defp update_remote_queues(operation, msg, state) do
     #Logger.info("update_remote_queues AMBOS #{operation}")
-
+    queue = process_name(state.queueName)
     Enum.each(Node.list(), fn node ->
       Logger.info("update_remote_queues #{node}")
-      #GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
+      # GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
+      queue = 
+      GenServer.cast({queue, node}, {:update_queue, {operation, msg}})
+
     end)
   end
 
@@ -186,10 +189,10 @@ defmodule MessageQueue do
     GenServer.cast(consumer.id, {:consume, consumer.id, queueName, msg.content, consumer.mode})
   end
 
-  defp queue_add_message(message, queue) do
+  defp queue_add_message(message, queue, state) do
     #Logger.info("queue_add_message #{inspect queue} #{inspect message}")
     msg = %Message{content: message, timestamp: :os.system_time(:milli_seconds)}
-    update_remote_queues(:push, msg)
+    update_remote_queues(:push, msg, state)
     queue = :queue.in(msg, queue)
     { :queue.len(queue), queue }
   end

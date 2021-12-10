@@ -132,12 +132,7 @@ defmodule QueueManager do
     ManagerNodesAgent.create_node(node)
     {:noreply, state}
   end
-
-  # TODO: Si soy el nodo activo, tengo que mandarselo a la cola y guardar en registry. Si no, solo lo guardo en el registry
-  defp do_subscribe(queue_id, consumer_pid, mode) do
-    ConsumersRegistry.subscribe_consumer(queue_id, consumer_pid, mode) #FIXME: this is registering with key=qm pid instead of the queue
-  end
-
+  
   # ---------------- Cliente ------------------#
 
   def get_queues() do

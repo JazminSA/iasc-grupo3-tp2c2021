@@ -47,7 +47,7 @@ defmodule Consumer do
 
     defp restore_subscriptions([], name) do
       Logger.info("Consumer #{name} with no subscriptions to restore")
-      register_create(name)
+      # register_create(name)
     end
     defp restore_subscriptions([], name, :next) do
       Logger.info("Consumer #{name} with no more subscriptions")

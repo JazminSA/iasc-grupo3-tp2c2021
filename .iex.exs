@@ -4,49 +4,84 @@
 # if length(Node.list()) < 1 do
 # end
 
-####### Creating Queues #######
-# {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
-# {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :pub_sub)
 
+####### Up first node #######
+# iex --name a@127.0.0.1 -S mix
 # ManagerNodesAgent.get
 
-# :sys.get_state(pidPSQ)
-# :sys.get_state(pidPSA)
+# iex --name b@127.0.0.1 -S mix
+# ManagerNodesAgent.get
+
+####### Creating Queues #######
+# [Node A] {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub) 
+# [Node B] {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :round_robin)
+
+## Show synched registries and agents
+# QueuesRegistry.list
+# MessageQueueAgent.get_queue_state(:MessageQueuePS)
+# MessageQueueAgent.get_queue_state(:MessageQueueRR)
+
+## Show active node for queues
+# ManagerNodesAgent.get
 
 ####### Creating consumers #######
-# Consumer.create(:Consumer1)
-# Consumer.create(:Consumer2)
-# Consumer.create(:Consumer3)
+# [Node A] Consumer.create(:Consumer1)
+# [Node A] Consumer.create(:Consumer2)
+# [Node B] Consumer.create(:Consumer3)
 
 ####### Subscribing consumers #######
-# Consumer.subscribe(:Consumer1, :MessageQueuePS, :transactional)
-# Consumer.subscribe(:Consumer2, :MessageQueuePS, :not_transactional)
-# Consumer.subscribe(:Consumer3, :MessageQueuePS, :not_transactional)
+# [Node A] Consumer.subscribe(:Consumer1, :MessageQueuePS, :transactional)
+# [Node A] Consumer.subscribe(:Consumer2, :MessageQueuePS, :not_transactional)
+# [Node B] Consumer.subscribe(:Consumer3, :MessageQueuePS, :not_transactional)
 
-# Consumer.subscribe(:Consumer1, :MessageQueueRR, :transactional)
-# Consumer.subscribe(:Consumer2, :MessageQueueRR, :transactional)
-# Consumer.subscribe(:Consumer3, :MessageQueueRR, :transactional)
+# [Node B] Consumer.subscribe(:Consumer1, :MessageQueueRR, :not_transactional)
+# [Node B] Consumer.subscribe(:Consumer2, :MessageQueueRR, :not_transactional)
+# [Node B] Consumer.subscribe(:Consumer3, :MessageQueueRR, :transactional)
 
-####### Check registrys #######
+####### Check synched registrys and states #######
 # Registry.lookup(ConsumersSubscriptionsRegistry, :Consumer1)
 # Registry.lookup(ConsumersSubscriptionsRegistry, :Consumer2)
+# Registry.lookup(ConsumersSubscriptionsRegistry, :Consumer3)
 
 # Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueuePS}})
 # Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 
 ####### Producer send messages on demand #######
-# Producer.publish(:MessageQueuePS, %{:message => :msg1})
-# Producer.publish(:MessageQueueRR, %{:message => :msg1})
+## OBSOLETE Producer.publish(:MessageQueueRR, %{:message => :msg1})
+# ManagerNodesAgent.get
+# [Node active] PokemonProducer.publish_msg_to(:MessageQueuePS, "pikachu")
+# [Node active] PokemonProducer.publish_msg_to(:MessageQueueRR, "charmander")
 
-####### Producer send messages recurrently #######
-# PokemonProducer.Supervisor.start_link([])
+# :sys.get_state({:via, Registry, {QueuesRegistry, :MessageQueuePS}})
+# MessageQueueAgent.get_queue_state(:MessageQueuePS)
+# MessageQueueAgent.get_queue_state(:MessageQueueRR)
+
+####### Producer send messages recurrently to one queue #######
+# PokemonProducer.normal_mode
+
+# PokemonProducer.publish_to :MessageQueueRR
+# PokemonProducer.stop_publish_to :MessageQueueRR
+
+# PokemonProducer.publish_to :MessageQueuePS
+# PokemonProducer.stop_publish_to :MessageQueuePS
+
+####### Producer send messages recurrently to all queues #######
 # PokemonProducer.publish_to_all()
 
 ####### Unsubscribing consumers #######
-# Consumer.unsubscribe(:Consumer1, :MessageQueuePS)
+# [Node X] Consumer.unsubscribe(:Consumer1, :MessageQueueRR)
+# [Node X] Consumer.unsubscribe(:Consumer2, :MessageQueueRR)
+# [Node X] Consumer.unsubscribe(:Consumer3, :MessageQueueRR)
+# Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 
-# :observer.start
+:observer.start
 
+
+
+########### Other usefull commands ###########
+# export ERL_AFLAGS="-kernel shell_history enabled"
+# :sys.get_state(pidPSQ)
+# :sys.get_state(pidPSA)
 
 
 ########## TESTS PRODUCER ########## 

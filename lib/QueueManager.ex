@@ -204,7 +204,7 @@ defmodule QueueManager do
   end
 
   def unsubscribe(consumer_pid, queue_id) do
-    Logger.info("QueueManager subscribe #{inspect consumer_pid} from #{queue_id}")
+    Logger.info("QueueManager unsubscribe #{inspect consumer_pid} from #{queue_id}")
     GenServer.cast(QueueManager, {:unsubscribe, consumer_pid, queue_id})
   end
 

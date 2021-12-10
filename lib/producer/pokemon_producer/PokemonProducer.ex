@@ -81,6 +81,7 @@ defmodule PokemonProducer do
   end
 
   defp produce(queue_ids, mode) do
+    Logger.info("Produce: #{inspect(queue_ids)}")
     Process.sleep(mode)
     Enum.each(queue_ids, fn queue_id ->
       GenServer.cast(queue_id, {:receive_message, get_pokemon(random_number())})

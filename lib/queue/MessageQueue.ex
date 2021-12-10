@@ -3,48 +3,56 @@ defmodule MessageQueue do
   require Logger
   # ---------------- Servidor ------------------#
 
-  def start_link(name, state) do
-    result = GenServer.start_link(__MODULE__, state, name: process_name(name))
+  def start_link(name, pidAgent) do
+    result =
+      GenServer.start_link(__MODULE__, Agent.get(pidAgent, fn state -> state end),
+        name: process_name(name)
+      )
+
     result
   end
 
   def child_spec({name, state}) do
-    %{id: name, start: {__MODULE__, :start_link, [name, state]}, type: :worker}
+    %{
+      id: name,
+      start: {__MODULE__, :start_link, [name, state]},
+      restart: :permanent,
+      type: :worker
+    }
   end
 
   defp process_name(name),
     do: {:via, Registry, {QueuesRegistry, name}}
 
   def init(state) do
-    { _, restored_consumers } = consumers(state)
-    restored_messages = :queue.new() #todo: obtain from other nodes
+    Logger.info("Queue final stateingreso: #{inspect(state)}")
+    # todo: obtain from other nodes
+    restored_messages = :queue.new()
 
-    type = Map.get(state, :type)
-    new_state = Map.put_new(state, :messages, restored_messages)
+    agent_add_element(state, :messages, restored_messages)
+    type = agent_get_element(state, :type)
 
-    # Logger.info("Queue final state: #{inspect(new_state)}")
-    GenServer.cast(self(), :dispatch_messages)
-    cond do
-      type == :pub_sub ->
-        {:ok, new_state}
-
-      type == :round_robin ->
-        new_state = Map.put_new(new_state, :index, 0)
-        {:ok, new_state}
+    if type == :round_robin do
+      agent_add_element(state, :index, 0)
     end
+
+    new_state = agent_get_state(state)
+    Logger.info("Queue final state: #{inspect(new_state)}")
+    GenServer.cast(self(), :dispatch_messages)
+    {:ok, new_state}
   end
 
   def handle_call(:get, _from, state) do
     {:reply, state, state}
   end
 
-  def handle_cast({:receive_message, message}, state) do
-    #Logger.info("handle_cast receive_message")
-    { _, messages } = messages(state)
-    { length, new_messages } = queue_add_message(message, messages, state)
-    new_state = Map.put(state, :messages, new_messages)
+  def handle_cast({:receive_message, message}, %{messages: messages} = state) do
+    Logger.info("handle_cast receive_message #{inspect(state)}")
+    new_state = queue_add_message(message, state)
+    Logger.info("handle_cast receive_message #{inspect(new_state)}")
     {:noreply, new_state}
   end
+
 
   ############################# Subscribe / Unsubscribe consumers INI #############################
   def handle_cast({:subscribe_consumer, queue_id, consumer_pid, mode}, state) do
@@ -63,86 +71,119 @@ defmodule MessageQueue do
 
   ############################# Subscribe / Unsubscribe consumers END #############################
 
-  def handle_cast(:dispatch_messages, state) do
+  def handle_cast(:dispatch_messages, %{queueName: qname, messages: messages} = state) do
+    active = ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() 
+    consumers_l = length(consumers(qname))
+    messages_l = :queue.len(messages)
+    Process.sleep(20000)
+    Logger.info("dispatch_message #{inspect(state)} #{active} #{messages_l} #{consumers_l} ")
     cond do
-      ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() ->
-        { messages_length, messages } = messages(state)
-        type = type(state)
-        { consumers_length, consumers } = consumers(state)
-        #Logger.info("handle_cast dispatch_messages #{type} #{messages_length} #{consumers_length}")
-        cond do
-          messages_length == 0 ->
-            #Logger.info("dispatch_message no messages")
-            GenServer.cast(self(), :dispatch_messages)
-            {:noreply, state}
-          type == :pub_sub ->
-            new_state = dispatch_messages(state, consumers, messages)
-            {:noreply, new_state}
-          type == :round_robin ->
-            new_state = dispatch_messages(state, consumers, messages, index(state))
-            {:noreply, new_state}
-        end
+      (
+        ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() 
+        and length(consumers(qname)) > 0 
+        and :queue.len(messages) > 0
+      ) ->
+        Logger.info("dispatch_message #{inspect(state)}")
+        new_state = dispatch_messages(state)
+        GenServer.cast(self(), :dispatch_messages)
+        Logger.info("dispatch_message dentro if #{inspect(new_state)}")
+        {:noreply, new_state}
       true ->
         GenServer.cast(self(), :dispatch_messages)
         {:noreply, state}
       end
   end
 
-  defp dispatch_messages(state, consumers, messages) do
-    Logger.info("dispatch_message con consumidores pubSub #{inspect(state)} #{inspect(consumers)}")
-    {msg, queue} = queue_pop_message(messages)
-    consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
-    Enum.each(consumers_list, fn c -> send_message(msg, c, state) end)
-    update_remote_queues(:pop, msg, state)
-    GenServer.cast(self(), :dispatch_messages)
-    new_state = Map.put(state, :messages, queue)
-    new_state
-  end
-
-  defp dispatch_messages(state, consumers, messages, index) do
-    #Logger.info("dispatch_message con consumidores RR indice #{index} #{inspect(state)} #{inspect(consumers)}")
+  defp dispatch_messages(
+    %{queueName: qname, messages: messages, type: :round_robin, index: index} = state
+  ) do
+    Logger.info("dispatch_message con consumidores RR #{inspect(state)}")
+    consumers = consumers(qname)
     {msg, queue} = queue_pop_message(messages)
     consumer = Enum.at(consumers, index)
     send_message(msg, consumer, state)
     update_remote_queues(:pop, msg, state)
-    GenServer.cast(self(), :dispatch_messages)
-    new_state = Map.put(state, :messages, queue)
-    new_state = Map.put(new_state, :index, new_index(length(consumers), index))
-    new_state
+    agent_update_element(state, :messages, queue)
+    new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+  end
+
+  defp dispatch_messages(%{queueName: qname, messages: messages, type: :pub_sub} = state) do
+    Logger.info("dispatch_message con consumidores pubSub #{inspect(state)}")
+    consumers = consumers(qname)
+    {msg, queue} = queue_pop_message(messages)
+    consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
+
+    Logger.info("dispatch_message consumers_list pubSub #{inspect(consumers_list)}")
+
+    Enum.each(consumers_list, fn c -> send_message(msg, c, state) end)
+    update_remote_queues(:pop, msg, state)
+    new_state = agent_update_element(state, :messages, queue)
+  end
+
+  defp state_get_element(state, element) do
+    Map.get(state, element)
+  end
+
+  defp agent_get_element(state, element) do
+    agentPid = get_agent_pid(state)
+    Agent.get(agentPid, fn state -> Map.get(state, element) end)
+  end
+
+  defp agent_add_element(state, key, value) do
+    agentPid = get_agent_pid(state)
+    Agent.update(agentPid, fn state -> Map.put(state, key, value) end)
+  end
+
+  defp agent_update_element(state, key, value) do
+    agentPid = get_agent_pid(state)
+
+    Agent.update(agentPid, fn state -> Map.update(state, key, :queue.new(), fn _ -> value end) end)
+
+    agent_get_state(state)
+  end
+
+  defp get_agent_pid(state) do
+    state_get_element(state, :agentPid)
+  end
+
+  defp agent_get_state(state) do
+    agentPid = get_agent_pid(state)
+    Agent.get(agentPid, fn state -> state end)
   end
 
   def handle_cast(
         {:update_queue, {:pop, message}},
-        %{messages: queue, consumers: consumers, index: index} = state
+        %{queueName: qname, messages: queue, index: index} = state
       ) do
-    #Logger.info("update_queue pop  RR indice #{index}")
-    queue = queue_delete_message(message, queue)
-    {:noreply, %{state | messages: queue, index: new_index(length(consumers), index)}}
+    # Logger.info("update_queue pop  RR indice #{index}")
+    consumers = consumers(qname)
+    new_state = queue_delete_message(state, queue)
+    new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+    {:noreply, new_state}
   end
 
   def handle_cast(
         {:update_queue, {:push, message}},
-        %{messages: queue, consumers: consumers, index: index} = state
+        %{queueName: qname, messages: queue, index: index} = state
       ) do
-    #Logger.info("update_queue push  RR indice #{index}")
+    consumers = consumers(qname)
+    # Logger.info("update_queue push  RR indice #{index}")
     queue = :queue.in(message, queue)
-    {:noreply, %{state | messages: queue, index: new_index(length(consumers), index)}}
+    new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+    {:noreply, new_state}
   end
 
-  def handle_cast({:update_queue, {:pop, message}}, %{messages: messages} = state) do
-    #Logger.info("update_queue push  PS ")
-    #  2 opciones una con el pop, otra con el delete
-    # {_, queue} = queue_pop_message(queue)
-    queue = queue_delete_message(message, messages)
-    {:noreply, %{state | messages: queue}}
-    # {:noreply, {queue, consumers}}
+  def handle_cast({:update_queue, {:pop, message}}, %{messages: queue} = state) do
+    # Logger.info("update_queue push  PS ")
+    new_state = queue_delete_message(state, queue)
+    {:noreply, new_state}
   end
 
-  def handle_cast({:update_queue, {:push, message}}, %{messages: messages} = state) do
-    #Logger.info("update_queue push  PS")
-    queue = :queue.in(message, messages)
-    {:noreply, %{state | messages: queue}}
-    # {:noreply, {queue, consumers}}
+  def handle_cast({:update_queue, {:push, message}}, %{messages: queue} = state) do
+    # Logger.info("update_queue push  PS")
+    queue = :queue.in(message, queue)
+    new_state = agent_update_element(state, :messages, queue)
+    {:noreply, new_state}
   end
 
   defp new_index(consumers_size, index) when consumers_size > index + 1 do
@@ -153,27 +194,25 @@ defmodule MessageQueue do
     0
   end
 
-  defp queue_delete_message(msg, queue) do
-    #Logger.info("queue_delete_message AMBOS")
+  defp queue_delete_message(%{messages: queue} = state, msg) do
+    Logger.info("queue_delete_message AMBOS")
     queue = :queue.delete(msg, queue)
+    agent_update_element(state, :messages, queue)
   end
 
   defp update_remote_queues(operation, msg, state) do
-    #Logger.info("update_remote_queues AMBOS #{operation}")
+    # Logger.info("update_remote_queues AMBOS #{operation}")
     queue = process_name(state.queueName)
     Enum.each(Node.list(), fn node ->
       Logger.info("update_remote_queues #{node}")
-      # GenServer.cast({QueueManager, node}, {:update_queue, {operation, msg}})
-      queue = 
       GenServer.cast({queue, node}, {:update_queue, {operation, msg}})
-
     end)
   end
 
   defp send_message(msg, %{mode: :transactional} = consumer, state) do
-    # Logger.info(
-    #   "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
-    # )
+    Logger.info(
+      "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
+    )
     # TODO: cuando finaliza el envio del mensaje, avisar al queueManager,
     # luego de timeout reencolar el mensaje con los consumidores que restan
     queueName = Map.get(state, :queueName)
@@ -181,49 +220,37 @@ defmodule MessageQueue do
   end
 
   defp send_message(msg, %{mode: :not_transactional} = consumer, state) do
-    # Logger.info(
-    #   "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
-    # )
+    Logger.info(
+      "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
+    )
     # TODO: cuando finaliza el envio del mensaje, avisar al queueManager
     queueName = Map.get(state, :queueName)
     GenServer.cast(consumer.id, {:consume, consumer.id, queueName, msg.content, consumer.mode})
   end
 
-  defp queue_add_message(message, queue, state) do
-    #Logger.info("queue_add_message #{inspect queue} #{inspect message}")
+  defp queue_add_message(message, %{messages: queue} = state) do
+    Logger.info("queue_add_message #{inspect message}")
     msg = %Message{content: message, timestamp: :os.system_time(:milli_seconds)}
-    update_remote_queues(:push, msg, state)
     queue = :queue.in(msg, queue)
-    { :queue.len(queue), queue }
+    update_remote_queues(:push, msg, state)
+    agent_update_element(state, :messages, queue)
   end
 
   defp queue_pop_message(queue)
   do
-    #Logger.info("queue_pop_message #{inspect queue}")
+    Logger.info("queue_pop_message #{inspect queue}")
     {{:value, head}, queue} = :queue.out(queue)
-    # {head, queue} = :queue.out(queue) PROBAR ESTA LINEA SOLA
     {head, queue}
   end
 
-  defp consumers(state) do
-    name = Map.get(state, :queueName)
-    key = process_name(name)
-    consumers = ConsumersRegistry.get_queue_consumers(key)
-    { length(consumers), consumers }
+  defp consumers(queue_name) do
+    Logger.info("consumers #{inspect queue_name}")
+    key = process_name(queue_name)
+    consumers = ConsumersRegistry.get_queue_consumers(queue_name)
+    Logger.info("consumers #{inspect key} #{inspect consumers}")
+    consumers
   end
 
-  defp messages(state) do
-    messages = Map.get(state, :messages)
-    { :queue.len(messages), messages }
-  end
-
-  defp index(state) do
-    index = Map.get(state, :index)
-  end
-
-  defp type(state) do
-    type = Map.get(state, :type)
-  end
   # ---------------- Cliente ------------------#
 
   def get(pid) do
@@ -236,13 +263,13 @@ defmodule MessageQueue do
 
   def subscribe_consumer(queue_id, consumer_pid, mode) do
     key = process_name(queue_id)
-    #Logger.info("MessageQueue: subscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
+    Logger.info("MessageQueue: subscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
     GenServer.cast(key, {:subscribe_consumer, key, consumer_pid, mode})
   end
 
   def unsubscribe_consumer(queue_id, consumer_pid) do
     key = process_name(queue_id)
-    #Logger.info("MessageQueue: unsubscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
+    Logger.info("MessageQueue: unsubscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
     GenServer.cast(key, {:unsubscribe_consumer, key, consumer_pid})
   end
 

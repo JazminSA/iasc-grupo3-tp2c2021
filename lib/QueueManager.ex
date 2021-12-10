@@ -33,107 +33,30 @@ defmodule QueueManager do
   ############################# Get queues info from QueuesRegistry END #############################
 
   def handle_call({:create, queue_id, type}, _from, state) do
-    # TODO: Vincular con Colas
-    cond do
-      # !Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id)) ->
-      # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
-      create_queue_in_system(queue_id) ->
-        Logger.info("handle_call :create_queue_in_system")
-        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-        Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
-        Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
-        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-        destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
+    Logger.info("handle_call :create_queue_in_system")
+    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+    Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
+    Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
+    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+    destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
-        Enum.each(Node.list(), fn node ->
-          :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
-        end)
+    Enum.each(Node.list(), fn node ->
+      :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
+    end)
 
-        {:reply, {pidQueue, pidAgent}, state}
-
-      create_local_queue_and_update_with_agent(queue_id) ->
-        Logger.info("handle_call :create_local_queue_and_update_with_agent")
-        pidAgent =
-          Agent.get(Process.whereis(:MessageQueueRRAgent), fn state -> state.agentPid end)
-
-        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-        # destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
-        {:reply, {pidQueue, pidAgent}, state}
-
-      create_local_agent_and_update_with_remote_agent(queue_id) ->
-        Logger.info("handle_call :create_local_agent_and_update_with_remote_agent")
-        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-        remote_state = :rpc.call(Enum.random(Node.list), MessageQueueAgent, :get, [])
-        Agent.update(pidAgent, fn _ -> Map.put(remote_state, :agentPid, pidAgent) end)
-        {:reply, {pidAgent}, state}
-
-      true ->
-        Logger.info("handle_call :true")
-        {:reply, {}, state}
-    end
-  end
-
-  defp exist_queue(queue_id) do
-    Enum.member?(QueuesRegistry.list, QueuesRegistry.get_pid(queue_id))
-  end
-
-  defp exist_queue_agent(queue_id) do
-    !is_nil(Process.whereis(String.to_atom(Atom.to_string(queue_id) <> "Agent")))
-  end
-
-  defp exist_queue_in_local_registry(queue_id) do
-    Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id))
-  end
-
-  defp create_queue_in_system(queue_id) do
-    # and !exist_queue_in_local_registry(queue_id)
-    !exist_queue(queue_id) and !exist_queue_agent(queue_id)
-  end
-
-  defp create_local_queue_and_update_with_agent(queue_id) do
-    # and exist_queue_in_local_registry(queue_id)
-    !exist_queue(queue_id) and exist_queue_agent(queue_id)
-  end
-
-  defp create_local_agent_and_update_with_remote_agent(queue_id) do
-    exist_queue(queue_id) and !exist_queue_agent(queue_id)
+    {:reply, {pidQueue, pidAgent}, state}
   end
 
   def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do
     # TODO: Vincular con Colas
-    cond do
-      # !Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id)) ->
-      # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
-      create_queue_in_system(queue_id) ->
-        Logger.info("handle_call :create_queue_in_system")
-        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-        Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
-        Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
-        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-        destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
+    Logger.info("handle_call :create_queue_in_system")
+    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+    Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
+    Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
+    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+    destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
-        {:reply, {pidQueue, pidAgent}, state}
-
-      create_local_queue_and_update_with_agent(queue_id) ->
-        Logger.info("handle_call :create_local_queue_and_update_with_agent")
-        pidAgent =
-          Agent.get(Process.whereis(:MessageQueueRRAgent), fn state -> state.agentPid end)
-
-        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-        # destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
-        {:reply, {pidQueue, pidAgent}, state}
-
-      create_local_agent_and_update_with_remote_agent(queue_id) ->
-        Logger.info("handle_call :create_local_agent_and_update_with_remote_agent")
-        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-        remote_state = :rpc.call(Enum.random(Node.list), MessageQueueAgent, :get, [])
-        Agent.update(pidAgent, fn _ -> Map.put(remote_state, :agentPid, pidAgent) end)
-        {:reply, {pidAgent}, state}
-
-      true ->
-        Logger.info("handle_call :true")
-        {:reply, {}, state}
-    end
+    {:reply, {pidQueue, pidAgent}, state}
   end
 
   def handle_cast({:delete, _queue_id}, state) do
@@ -273,7 +196,7 @@ defmodule QueueManager do
   end
 
   def unsubscribe(consumer_pid, queue_id) do
-    Logger.info("QueueManager subscribe #{inspect(consumer_pid)} from #{queue_id}")
+    Logger.info("QueueManager unsubscribe #{inspect(consumer_pid)} from #{queue_id}")
     GenServer.cast(QueueManager, {:unsubscribe, consumer_pid, queue_id})
   end
 

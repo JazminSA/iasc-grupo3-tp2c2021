@@ -114,7 +114,7 @@ defmodule MessageQueue do
   end
 
   def handle_cast({:unsubscribe_consumer, queue_id, consumer_pid}, state) do
-    #Logger.info("MessageQueue unsubscribe_consumer in registry #{inspect consumer_pid} to #{inspect queue_id}")
+    Logger.info("MessageQueue unsubscribe_consumer in registry #{inspect consumer_pid} to #{inspect queue_id}")
     match = %{ id: consumer_pid }
     Registry.unregister_match(ConsumersRegistry, queue_id, match)
     {:noreply, state}

@@ -4,6 +4,8 @@ defmodule MessageQueue do
   # ---------------- Servidor ------------------#
 
   def start_link(name, pidAgent) do
+    Logger.info("MessageQueue start_link: #{inspect(pidAgent)}")
+
     result =
       GenServer.start_link(__MODULE__, Agent.get(pidAgent, fn state -> state end),
         name: process_name(name)
@@ -13,6 +15,8 @@ defmodule MessageQueue do
   end
 
   def child_spec({name, state}) do
+    Logger.info("MessageQueue child_spec: #{inspect(state)}")
+
     %{
       id: name,
       start: {__MODULE__, :start_link, [name, state]},
@@ -25,11 +29,9 @@ defmodule MessageQueue do
     do: {:via, Registry, {QueuesRegistry, name}}
 
   def init(state) do
-    Logger.info("Queue final stateingreso: #{inspect(state)}")
-    # todo: obtain from other nodes
-    restored_messages = :queue.new()
+    Logger.info("MessageQueue Queue final stateingreso: #{inspect(state)}")
 
-    agent_add_element(state, :messages, restored_messages)
+    # agent_add_element(state, :messages, restored_messages)
     type = agent_get_element(state, :type)
 
     if type == :round_robin do
@@ -46,6 +48,20 @@ defmodule MessageQueue do
     {:reply, state, state}
   end
 
+  def handle_call({:update_state, new_state}, _from, state) do
+    {:reply, new_state, new_state}
+  end
+
+  def handle_call({:pause_queue}, _from, state) do
+    Map.put(state, :active, false)
+    {:reply, state, state}
+  end
+
+  def handle_call({:unpause_queue}, _from, state) do
+    Map.put(state, :active, true)
+    {:reply, state, state}
+  end
+
   def handle_cast({:receive_message, message}, %{messages: messages} = state) do
     Logger.info("handle_cast receive_message #{inspect(state)}")
     new_state = queue_add_message(message, state)
@@ -53,67 +69,80 @@ defmodule MessageQueue do
     {:noreply, new_state}
   end
 
-
   ############################# Subscribe / Unsubscribe consumers INI #############################
   def handle_cast({:subscribe_consumer, queue_id, consumer_pid, mode}, state) do
-    Logger.info("MessageQueue subscribe_consumer in registry #{inspect consumer_pid} to #{inspect queue_id} as #{mode}")
-    consumer = %{ id: consumer_pid, timestamp: :os.system_time(:milli_seconds), mode: mode }
+    Logger.info(
+      "MessageQueue subscribe_consumer in registry #{inspect(consumer_pid)} to #{inspect(queue_id)} as #{mode}"
+    )
+
+    consumer = %{id: consumer_pid, timestamp: :os.system_time(:milli_seconds), mode: mode}
     Registry.register(ConsumersRegistry, queue_id, consumer)
     {:noreply, state}
   end
+
   def handle_cast({:unsubscribe_consumer, queue_id, consumer_pid}, state) do
-    Logger.info("MessageQueue unsubscribe_consumer in registry #{inspect consumer_pid} to #{inspect queue_id}")
-    match = %{ id: consumer_pid }
+    Logger.info(
+      "MessageQueue unsubscribe_consumer in registry #{inspect(consumer_pid)} to #{inspect(queue_id)}"
+    )
+
+    match = %{id: consumer_pid}
     Registry.unregister_match(ConsumersRegistry, queue_id, match)
     {:noreply, state}
   end
 
-
   ############################# Subscribe / Unsubscribe consumers END #############################
 
   def handle_cast(:dispatch_messages, %{queueName: qname, messages: messages} = state) do
-    active = ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() 
+    active = ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self()
     consumers_l = length(consumers(qname))
     messages_l = :queue.len(messages)
     Process.sleep(1500)
     # Logger.info("dispatch_message #{inspect(state)} #{active} #{messages_l} #{consumers_l} ")
     cond do
-      (
-        ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() 
-        and length(consumers(qname)) > 0 
-        and :queue.len(messages) > 0
-      ) ->
+      ManagerNodesAgent.get_node_for_queue(state.queueName) == Node.self() and
+        length(consumers(qname)) > 0 and
+          :queue.len(messages) > 0 and
+          state.active ->
         # Logger.info("dispatch_message #{inspect(state)}")
         new_state = dispatch_messages(state)
         GenServer.cast(self(), :dispatch_messages)
         {:noreply, new_state}
+
       true ->
         GenServer.cast(self(), :dispatch_messages)
         {:noreply, state}
-      end
+    end
   end
 
   defp dispatch_messages(
-    %{queueName: qname, messages: messages, type: :round_robin, index: index} = state
-  ) do
-    Logger.info("dispatch_message con consumidores RR #{inspect(state)}")
-    consumers = consumers(qname)
-    {msg, queue} = queue_pop_message(messages)
-    consumer = Enum.at(consumers, index)
-    send_message(msg, consumer, state)
-    update_remote_queues(:pop, msg, state)
-    agent_update_element(state, :messages, queue)
-    new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+         %{queueName: qname, messages: messages, type: :round_robin, index: index} = state
+       ) do
+    # if Process.alive?(state.agentPid) do
+      Logger.info("dispatch_message con consumidores RR #{inspect(state)}")
+      consumers = consumers(qname)
+      {msg, queue} = queue_pop_message(messages)
+      consumer = Enum.at(consumers, index)
+      send_message(msg, consumer, state)
+      update_remote_queues(:pop, msg, state)
+      agent_update_element(state, :messages, queue)
+      new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+    # else
+    #   state
+    # end
   end
 
   defp dispatch_messages(%{queueName: qname, messages: messages, type: :pub_sub} = state) do
-    Logger.info("dispatch_message con consumidores pubSub #{inspect(state)}")
-    consumers = consumers(qname)
-    {msg, queue} = queue_pop_message(messages)
-    consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
-    Enum.each(consumers_list, fn c -> send_message(msg, c, state) end)
-    update_remote_queues(:pop, msg, state)
-    new_state = agent_update_element(state, :messages, queue)
+    # if Process.alive?(state.agentPid) do
+      Logger.info("dispatch_message con consumidores pubSub #{inspect(state)}")
+      consumers = consumers(qname)
+      {msg, queue} = queue_pop_message(messages)
+      consumers_list = Enum.filter(consumers, fn c -> c.timestamp <= msg.timestamp end)
+      Enum.each(consumers_list, fn c -> send_message(msg, c, state) end)
+      update_remote_queues(:pop, msg, state)
+      new_state = agent_update_element(state, :messages, queue)
+    # else
+    #   state
+    # end
   end
 
   defp state_get_element(state, element) do
@@ -131,7 +160,7 @@ defmodule MessageQueue do
   end
 
   defp agent_update_element(state, key, value) do
-    Logger.info("agent_update_element #{inspect state}")
+    Logger.info("agent_update_element #{inspect(state)}")
     agentPid = get_agent_pid(state)
 
     Agent.update(agentPid, fn state -> Map.update(state, key, :queue.new(), fn _ -> value end) end)
@@ -151,19 +180,18 @@ defmodule MessageQueue do
   def handle_cast(
         {:update_queue, :push, message},
         %{queueName: qname, messages: queue, index: index} = state
-      ) 
-      do
-      consumers = consumers(qname)
-      Logger.info("update_queue push  RR indice #{index}")
-      queue = :queue.in(message, queue)
-      new_state = agent_update_element(state, :index, new_index(length(consumers), index))
-      {:noreply, new_state}
+      ) do
+    consumers = consumers(qname)
+    Logger.info("update_queue push  RR indice #{index}")
+    queue = :queue.in(message, queue)
+    new_state = agent_update_element(state, :index, new_index(length(consumers), index))
+    {:noreply, new_state}
   end
 
   def handle_cast(
-    {:update_queue, :pop, message},
-    %{queueName: qname, messages: queue, index: index} = state
-  ) do
+        {:update_queue, :pop, message},
+        %{queueName: qname, messages: queue, index: index} = state
+      ) do
     Logger.info("update_queue pop  RR indice #{index}")
     consumers = consumers(qname)
     new_state = queue_delete_message(state, queue)
@@ -201,8 +229,9 @@ defmodule MessageQueue do
   defp update_remote_queues(operation, msg, state) do
     # Logger.info("update_remote_queues AMBOS #{operation}")
     queue = process_name(state.queueName)
+
     Enum.each(Node.list(), fn node ->
-      Logger.info("update_remote_queues #{inspect node} #{inspect queue}")
+      Logger.info("update_remote_queues #{inspect(node)} #{inspect(queue)}")
       # GenServer.cast({queue, node}, {:update_queue, operation, msg})
       # MessageQueue.update_queue(state.queueName, operation, msg) 
       :rpc.call(node, MessageQueue, :update_queue, [state.queueName, operation, msg])
@@ -213,29 +242,36 @@ defmodule MessageQueue do
     Logger.info(
       "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
     )
+
     # TODO: cuando finaliza el envio del mensaje, avisar al queueManager,
     # luego de timeout reencolar el mensaje con los consumidores que restan
-    GenServer.cast(consumer.id, {:consume, consumer.id, state.queueName, msg.content, consumer.mode})
+    GenServer.cast(
+      consumer.id,
+      {:consume, consumer.id, state.queueName, msg.content, consumer.mode}
+    )
   end
 
   defp send_message(msg, %{mode: :not_transactional} = consumer, state) do
     Logger.info(
       "Se envio mensaje #{inspect(msg.content)} a #{inspect(consumer.id)} #{inspect(consumer.mode)}"
     )
+
     # TODO: cuando finaliza el envio del mensaje, avisar al queueManager
-    GenServer.cast(consumer.id, {:consume, consumer.id, state.queueName, msg.content, consumer.mode})
+    GenServer.cast(
+      consumer.id,
+      {:consume, consumer.id, state.queueName, msg.content, consumer.mode}
+    )
   end
 
   defp queue_add_message(message, %{messages: queue} = state) do
-    Logger.info("queue_add_message #{inspect message}")
+    Logger.info("queue_add_message #{inspect(message)}")
     msg = %{content: message, timestamp: :os.system_time(:milli_seconds)}
     queue = :queue.in(msg, queue)
     update_remote_queues(:push, msg, state)
     agent_update_element(state, :messages, queue)
   end
 
-  defp queue_pop_message(queue)
-  do
+  defp queue_pop_message(queue) do
     # Logger.info("queue_pop_message #{inspect queue}")
     {{:value, head}, queue} = :queue.out(queue)
     {head, queue}
@@ -257,7 +293,7 @@ defmodule MessageQueue do
   end
 
   def update_queue(queue_id, operation, message) do
-    GenServer.cast(process_name(queue_id), {:update_queue,  operation, message})
+    GenServer.cast(process_name(queue_id), {:update_queue, operation, message})
   end
 
   def receive_message(queue_id, message) do
@@ -266,13 +302,13 @@ defmodule MessageQueue do
 
   def subscribe_consumer(queue_id, consumer_pid, mode) do
     key = process_name(queue_id)
-    Logger.info("MessageQueue: subscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
+    Logger.info("MessageQueue: subscribe_consumer #{inspect(consumer_pid)} to #{inspect(key)}")
     GenServer.cast(key, {:subscribe_consumer, key, consumer_pid, mode})
   end
 
   def unsubscribe_consumer(queue_id, consumer_pid) do
     key = process_name(queue_id)
-    Logger.info("MessageQueue: unsubscribe_consumer #{inspect(consumer_pid)} to #{inspect key}")
+    Logger.info("MessageQueue: unsubscribe_consumer #{inspect(consumer_pid)} to #{inspect(key)}")
     GenServer.cast(key, {:unsubscribe_consumer, key, consumer_pid})
   end
 

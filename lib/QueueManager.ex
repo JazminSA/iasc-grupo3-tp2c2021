@@ -54,6 +54,9 @@ defmodule QueueManager do
     Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
     Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
     {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+
+    Process.monitor(pidQueue)
+
     destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
     {:reply, {pidQueue, pidAgent}, state}
@@ -224,5 +227,20 @@ defmodule QueueManager do
   #     MessageQueueDynamicSupervisor.start_child(queue_name, :pub_sub, [])
   #   end)
   # end
-  
+
+
+  def handle_info(msg, state) do
+    Logger.info("handle_info DOWN #{inspect msg}", ansi_color: :red)
+    {_, _, _, pid, _} = {:DOWN, #Reference<0.1512812219.4259577859.170651>, :process, #PID<0.348.0>, :killed}
+    #TODO: 
+    
+    # recuperar el nombre de la cola de este pid
+    
+    # buscar en otro nodo 
+    
+    # recuperar consumers para el nombre de la cola que antes tenía el PID
+    
+    {:noreply, state}
+  end
+
 end

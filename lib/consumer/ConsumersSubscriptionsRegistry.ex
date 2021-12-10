@@ -26,6 +26,10 @@ defmodule ConsumersSubscriptionsRegistry do
       Registry.select(__MODULE__, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}])
     end
 
+    # def get_queue_subscriptions(consumer) do
+    #   Registry.select(__MODULE__, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}])
+    # end
+
     def get_consumer_subscriptions(consumer, other_node) do
       Logger.info("ConsumersSubscriptionsRegistry get_consumer_subscriptions #{consumer}")
       :rpc.call(other_node, __MODULE__, :get_consumer_subscriptions, [consumer])

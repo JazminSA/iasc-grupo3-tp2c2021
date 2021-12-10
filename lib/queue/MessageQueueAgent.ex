@@ -15,6 +15,7 @@ defmodule MessageQueueAgent do
       new_state = Agent.get(pidAgent, fn state -> state end)
       GenServer.call(QueuesRegistry.get_pid(name), {:update_state, new_state})
       GenServer.call(QueuesRegistry.get_pid(name), {:unpause_queue})
+
       {:ok, pidAgent}
     else
       Logger.info("entro en else")

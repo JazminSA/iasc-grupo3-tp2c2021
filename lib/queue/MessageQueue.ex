@@ -40,40 +40,40 @@ defmodule MessageQueue do
 
     new_state = agent_get_state(state)
 
-    # #si es un reinicio de cola, volver a suscribir a los consumidores que tenía, sacando la info del ConsumersRegistry de otro nodo
-    #   cond do
-    #     replicated == true ->
-    #       Logger.info("MessageQueue #{name} [replicated] initialize in #{Node.self}")
-    #     true ->
-    #       subscriptions = get_consumers_subscriptions(Node.list, name)
-    #       Logger.info("MessageQueue #{name} initialize in #{Node.self} with consumer subscriptions: #{inspect subscriptions}")
-    #       restore_subscriptions(subscriptions, name)
-    #   end
-      
+    #si es un reinicio de cola, volver a suscribir a los consumidores que tenía, sacando la info del ConsumersRegistry de otro nodo
+      # cond do
+      #   # replicated == true ->
+      #   #   Logger.info("MessageQueue #{name} [replicated] initialize in #{Node.self}")
+      #   true ->
+      #     subscriptions = get_consumers_subscriptions(Node.list, state.queueName)
+      #     Logger.info("MessageQueue #{name} initialize in #{Node.self} with subscriptions: #{inspect subscriptions}")
+      #     restore_subscriptions(subscriptions, name)
+      # end
+
     # Logger.info("Queue final state: #{inspect(new_state)}")
     GenServer.cast(self(), :dispatch_messages)
     {:ok, new_state}
   end
 
-  # defp get_consumer_subscriptions([], name) do
-  #   Logger.info("Consumer #{name} havent recovered subscriptions")
+  # defp get_consumers_subscriptions([], name) do
+  #   Logger.info("MessageQueue #{name} havent recovered subscriptions")
   #   []
   # end
-  # defp get_consumer_subscriptions([node|nodes], name) do
-  #   subscriptions = ConsumersSubscriptionsRegistry.get_consumer_subscriptions(name, node)
+  # defp get_consumers_subscriptions([node|nodes], name) do
+  #   subscriptions = ConsumersRegistry.get_consumers_subscriptions(name, node)
   # end
 
   # defp restore_subscriptions([], name) do
-  #   # Logger.info("Consumer #{name} with no subscriptions to restore")
+  #   # Logger.info("MessageQueue #{name} with no subscriptions to restore")
   #   # register_create(name)
   # end
   # defp restore_subscriptions([], name, :next) do
-  #   # Logger.info("Consumer #{name} with no more subscriptions")
+  #   # Logger.info("MessageQueue #{name} with no more subscriptions")
   # end
   # defp restore_subscriptions([subscription | subscriptions], name) do
-  #   Logger.info("Consumer #{name} restoring subscription #{inspect subscription}")
-  #   {queue, mode, subscribed_at} = subscription
-  #   Consumer.subscribe(name, queue, mode, subscribed_at, :restored)
+  #   Logger.info("MessageQueue #{name} restoring subscription #{inspect subscription}")
+  #   # {queue, mode, subscribed_at} = subscription
+  #   # Consumer.subscribe(name, queue, mode, subscribed_at, :restored)
   #   restore_subscriptions(subscriptions, name, :next)
   # end
 

@@ -13,7 +13,7 @@ defmodule MQApplication do
       children = [
         {Cluster.Supervisor, [topologies, [name: MyApp.ClusterSupervisor]]},
         QueueManagerSupervisor,
-        ProducerSupervisor,
+        PokemonProducer.Supervisor,
         %{id: ConsumerDynamicSupervisor, start: {ConsumerDynamicSupervisor, :start_link, [[]]} },
         %{id: MessageQueueAgentDynamicSupervisor, start: {MessageQueueAgentDynamicSupervisor, :start_link, [[]]} },
         %{id: MessageQueueDynamicSupervisor, start: {MessageQueueDynamicSupervisor, :start_link, [[]]} },

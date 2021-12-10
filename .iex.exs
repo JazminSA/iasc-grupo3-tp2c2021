@@ -45,4 +45,41 @@
 ####### Unsubscribing consumers #######
 # Consumer.unsubscribe(:Consumer1, :MessageQueuePS)
 
-:observer.start
+# :observer.start
+
+
+
+########## TESTS PRODUCER ########## 
+# {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
+# Consumer.create(:Consumer1)
+# Consumer.subscribe(:Consumer1, :MessageQueuePS, :not_transactional)
+
+## Colas a las que el productor actualmente está produciendo
+# PokemonProducer.queues
+
+## Producir un único mensaje a una cola especifíca. El segundo parámetro
+# es el número de pokemon a enviar (también se puede pasar el nombre)
+# PokemonProducer.publish_msg_to(:MessageQueuePS, 25)
+# PokemonProducer.publish_msg_to(:MessageQueuePS, "pikachu")
+
+## Producir (permanentemente) a una cola especifíca
+# PokemonProducer.publish_to :MessageQueuePS
+
+## Dejar de producir a una cola especifíca
+# PokemonProducer.stop_publish_to :MessageQueuePS
+
+## Producir (permanentemente) a todas las colas registradas
+# PokemonProducer.publish_to_all
+
+## Dejar de producir a todas las colas registradas
+# PokemonProducer.stop_publish_to_all
+
+## Cambiar velocidad de producción (mientras se está produciendo)
+# PokemonProducer.slow_mode # -> Envia un mensaje cada 10 seg
+# PokemonProducer.normal_mode # -> Envia un mensaje cada 5 seg
+# PokemonProducer.fast_mode # -> Envia un mensaje cada 1 seg
+# PokemonProducer.custom_mode(ms_value) # -> Envia un mensaje cada ms_value ms
+
+
+
+

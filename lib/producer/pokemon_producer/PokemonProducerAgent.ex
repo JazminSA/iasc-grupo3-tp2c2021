@@ -18,6 +18,10 @@ defmodule PokemonProdAgent do
     Map.get(state, :queue_ids)
   end
 
+  def queue_names do
+    Enum.map(get_queue_ids(), fn {:via, _, {_, queue_name}} -> queue_name end)
+  end
+
   def get_prod_mode do
     state = PokemonProdAgent.get()
     Map.get(state, :prod_mode)
@@ -28,4 +32,9 @@ defmodule PokemonProdAgent do
     PokemonProdAgent.update(new_state)
     PokemonProdAgent.get()
   end
+
+  def queue_exists?(queue_id_to_find) do
+    Enum.any?(get_queue_ids(), fn queue_id -> queue_id == queue_id_to_find end)
+  end
+  
 end

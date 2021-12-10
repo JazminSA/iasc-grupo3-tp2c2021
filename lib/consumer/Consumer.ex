@@ -173,7 +173,9 @@ defmodule Consumer do
 
     def handle_cast({:consume, pid, queue, message, mode}, state) do
       [{_, name} | _] = Process.info(pid);
-      Logger.info("Consumer #{name} #{inspect pid}: Received #{inspect message} #{mode} from #{queue}")
+      Logger.info("Consumer #{name} #{inspect pid} - #{mode} from #{queue}")
+      Logger.info("Receiving message ...")
+      Logger.info("#{inspect message}", ansi_color: :green)
       cond do
         mode == :transactional -> acknowledge(name, queue, message, state)
         mode == :not_transactional ->  {:noreply, state}

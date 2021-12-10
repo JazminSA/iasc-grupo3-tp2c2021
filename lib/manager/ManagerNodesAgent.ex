@@ -3,7 +3,10 @@ defmodule ManagerNodesAgent do
 
   def start_link(_initial_state) do
     state = case length(Node.list()) do
-      0 -> %{nodes: %{}, queues: %{}}
+      0 -> 
+        initial_nodes = %{}
+        initial_nodes = Map.put(initial_nodes, Node.self(), 0)
+        %{nodes: initial_nodes, queues: %{}}
       _ -> :erpc.call(Enum.random(Node.list()), ManagerNodesAgent, :get, [])
     end
     Agent.start_link(fn -> state end, name: __MODULE__)

@@ -94,7 +94,6 @@ defmodule QueueManager do
   def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
     Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
 
-    # ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid) #FIXME: this is not unregistering consumer
     # Unsubscribe consumer from Registry
     MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
     replicate_unsubscribe(Node.list(), consumer_pid, queue_id)
@@ -107,7 +106,7 @@ defmodule QueueManager do
   end
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id, :replicated}, state) do
-    ConsumersRegistry.unsubscribe_consumer(queue_id, consumer_pid)
+    MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
     {:noreply, state}
   end
 

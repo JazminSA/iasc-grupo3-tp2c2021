@@ -92,11 +92,12 @@
 
 #####################
 
-# {pidPSQ2, pidPSA2} = Node.s
-# {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :round_robin)
+# {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
+# {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :pub_sub)
 # Consumer.create(:Consumer1)
 # Consumer.create(:Consumer2)
-# Consumer.subscribe(:Consumer1, :MessageQueuePS3, :transactional)
+# Consumer.create(:Consumer3)
+# Consumer.subscribe(:Consumer1, :MessageQueuePS, :transactional)
 # Consumer.subscribe(:Consumer2, :MessageQueuePS, :not_transactional)
 # Consumer.subscribe(:Consumer3, :MessageQueuePS, :not_transactional)
 
@@ -114,3 +115,7 @@
 # Producer.publish(:MessageQueueRR, %{:message => :msg1})
 
 # Consumer.unsubscribe(:Consumer1, :MessageQueuePS)
+
+# ManagerNodesAgent.get
+
+:observer.start

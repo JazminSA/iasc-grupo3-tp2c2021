@@ -1,6 +1,7 @@
 import Config
 
 config :message_queue,
-  max_messages: 100
+  max_messages: 20
 
-import_config "#{config_env()}.exs"
+
+# "value1" = Application.fetch_env!(:some_app, :key1)

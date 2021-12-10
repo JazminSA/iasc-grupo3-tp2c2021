@@ -75,7 +75,7 @@
 # [Node X] Consumer.unsubscribe(:Consumer3, :MessageQueueRR)
 # Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 
-:observer.start
+# :observer.start
 
 ########### Other usefull commands ###########
 # export ERL_AFLAGS="-kernel shell_history enabled"
@@ -117,6 +117,7 @@
 
 
 
+
 # ################################### RR TESTS ###################################
 
 # {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :round_robin)
@@ -138,3 +139,11 @@
 # :sys.get_state({:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 
 # ######################################################################
+
+### BORRADOR
+if length(Node.list()) < 1 do
+  {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
+  # Consumer.create(:Consumer1)
+  # Consumer.subscribe(:Consumer1, :MessageQueuePS, :not_transactional)
+end
+

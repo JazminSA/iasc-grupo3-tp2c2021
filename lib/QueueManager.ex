@@ -5,7 +5,9 @@ defmodule QueueManager do
   # ---------------- Servidor ------------------#
 
   def start_link(state) do
-    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+    result = GenServer.start_link(__MODULE__, state, name: __MODULE__)
+    # sync_queues(nil)
+    result
   end
 
   def init(state) do
@@ -166,16 +168,50 @@ defmodule QueueManager do
     # sync_queues(node)
     {:noreply, state}
   end
-
-  # def handle_cast({:sync_queues, queues_names}, state) do
-  #   Logger.info "Node B recibe mensaje para sincronizar colas #{inspect queues_names}"
-  #   Enum.each(queues_names, fn queue_name -> 
-  #     # Por ahora hardcodeo el tipo de la cola a :pub_sub
-  #     MessageQueueDynamicSupervisor.start_child(queue_name, :pub_sub, [])
-  #   end)
-  #   {:noreply, state}
-  # end
   
+  ############################# Sync Remote Queues INIT #############################
+
+  # Sincronizar colas ya creadas entre nodos (debería poder moverlo al init)
+  def sync_queues do
+    if Node.list != [] do
+      Logger.info "sync queues ..."
+
+      # 1 - Obtengo los queue_names de algun nodo remoto
+      selected_node = Enum.random(Node.list)
+      remotes_queues = GenServer.call({QueueManager, selected_node}, :get_queues_from_another_node)
+      Logger.info "queues from #{inspect selected_node} = #{inspect remotes_queues}"
+      
+      # 2 - Creo las colas en el nodo local
+      Enum.each(remotes_queues, fn remote_queue -> 
+        GenServer.cast(QueueManager, {:replicate_queue_from_remote, remote_queue})
+      end)
+    end
+  end
+
+  def handle_call(:get_queues_from_another_node, _from, state) do
+    Logger.info "Node A recibe mensaje para sincronizar colas #{inspect QueuesRegistry.queue_names()}"
+    queues_state = Enum.map(QueuesRegistry.queue_names(), fn queue_name -> 
+      %{agentPid: agent_pid, messages: messages, queueName: name, type: type} = MessageQueueAgent.get_queue_state(queue_name)
+      Logger.info "Queue type #{inspect type}"
+      Logger.info "Queue messages #{inspect messages}"
+      %{agent_pid: agent_pid, messages: messages, name: name, type: type}
+    end)
+    {:reply, queues_state, state}
+  end
+
+  def handle_cast({:replicate_queue_from_remote, remote_queue}, state) do
+    # Borrar
+    Logger.info("Remote queue messages #{inspect remote_queue.messages}")
+
+    {:ok, pid_agent} = MessageQueueAgentDynamicSupervisor.start_child(remote_queue.name, remote_queue.type, [])
+    Agent.update(pid_agent, fn state -> Map.put(state, :agentPid, pid_agent) end)
+    Agent.update(pid_agent, fn state -> Map.put(state, :messages, remote_queue.messages) end)
+    {:ok, pid_queue} = MessageQueueDynamicSupervisor.start_child(remote_queue.name, pid_agent)
+    {:noreply, state}
+  end
+
+  ############################# Sync Remote Queues END #############################
+
   # ---------------- Cliente ------------------#
 
   def get_queues() do
@@ -208,29 +244,4 @@ defmodule QueueManager do
     GenServer.cast(QueueManager, {:unsubscribe, consumer_pid, queue_id})
   end
 
-  # Sincronizar colas ya creadas entre nodos (debería poder moverlo al init)
-  def sync_queues(node) do
-    if Node.list != [] do
-      Logger.info "sync queues ..."
-      nodeB = List.first(Node.list())
-      selected_node = Enum.random(Node.list)
-      # :rpc.cast(nodeB, QueueManager, :sync_queues, [QueuesRegistry.queue_names()])
-      GenServer.cast({QueueManager, nodeB}, {:sync_queues, QueuesRegistry.queue_names()})
-      # Capaz convendría sacar los create queue del .iex.exs y primero levantar
-      # todos los nodos manualmente y después si crear, a mano, la cola que queramos en cada nodo.
-      # De esa manera se ve, justamente, como la cola se va a ir replicando en los diferentes nodos.
-    end
-  end
-
-  # Sincronizar colas ya creadas entre nodos (debería poder moverlo al init)
-  # def sync_queues() do
-  #   selected_node = Enum.random(Node.list)
-  #   active_queues_names = GenServer.call({QueueManager, selected_node}, :get_queues_names)
-  #   Logger.info "Active queues #{inspect active_queues_names} in node #{inspect selected_node}"
-  #   Enum.each(active_queues_names, fn queue_name ->
-  #     # Por ahora hardcodeo el tipo de la cola a :pub_sub
-  #     MessageQueueDynamicSupervisor.start_child(queue_name, :pub_sub, [])
-  #   end)
-  # end
-  
 end

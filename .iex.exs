@@ -50,9 +50,10 @@
 ##  Producer.publish(:MessageQueueRR, %{:message => :msg1})
 # ManagerNodesAgent.get
 # [Node active] PokemonProducer.publish_msg_to(:MessageQueuePS, "pikachu")
-# [Node active] PokemonProducer.publish_msg_to(:MessageQueueRR, "charmander")
+# [Node active] PokemonProducer.publish_msg_to(:MessageQueueRR, "pikachu")
 
 # :sys.get_state({:via, Registry, {QueuesRegistry, :MessageQueuePS}})
+# :sys.get_state({:via, Registry, {QueuesRegistry, :MessageQueueRR}})
 # MessageQueueAgent.get_queue_state(:MessageQueuePS)
 # MessageQueueAgent.get_queue_state(:MessageQueueRR)
 
@@ -116,3 +117,24 @@
 
 
 
+# ################################### RR TESTS ###################################
+
+# {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :round_robin)
+# Consumer.create(:Consumer1)
+# Consumer.create(:Consumer2)
+# Consumer.create(:Consumer3)
+
+# Consumer.subscribe(:Consumer1, :MessageQueueRR, :not_transactional)
+# Consumer.subscribe(:Consumer2, :MessageQueueRR, :not_transactional)
+# Consumer.subscribe(:Consumer3, :MessageQueueRR, :transactional)
+
+# Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueueRR}})
+
+# PokemonProducer.publish_msg_to(:MessageQueueRR, "charmander")
+# PokemonProducer.publish_msg_to(:MessageQueueRR, "pikachu")
+# PokemonProducer.publish_msg_to(:MessageQueueRR, "squartle")
+
+# MessageQueueAgent.get_queue_state(:MessageQueueRR)
+# :sys.get_state({:via, Registry, {QueuesRegistry, :MessageQueueRR}})
+
+# ######################################################################

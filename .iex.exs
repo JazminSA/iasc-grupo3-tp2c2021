@@ -92,16 +92,25 @@
 
 #####################
 
-# {pidPSQ, pidPSA} = QueueManager.create(:MessageQueuePS, :pub_sub)
+# {pidPSQ2, pidPSA2} = Node.s
+# {pidRRQ, pidRRA} = QueueManager.create(:MessageQueueRR, :round_robin)
 # Consumer.create(:Consumer1)
 # Consumer.create(:Consumer2)
-# Consumer.subscribe(:Consumer1, :MessageQueuePS, :transactional)
+# Consumer.subscribe(:Consumer1, :MessageQueuePS3, :transactional)
 # Consumer.subscribe(:Consumer2, :MessageQueuePS, :not_transactional)
+# Consumer.subscribe(:Consumer3, :MessageQueuePS, :not_transactional)
+
+# Consumer.subscribe(:Consumer1, :MessageQueueRR, :transactional)
+# Consumer.subscribe(:Consumer2, :MessageQueueRR, :transactional)
+# Consumer.subscribe(:Consumer3, :MessageQueueRR, :transactional)
+
+
 # Registry.lookup(ConsumersSubscriptionsRegistry, :Consumer1)
 # Registry.lookup(ConsumersSubscriptionsRegistry, :Consumer2)
 
 # Registry.lookup(ConsumersRegistry, {:via, Registry, {QueuesRegistry, :MessageQueuePS}})
 
 # Producer.publish(:MessageQueuePS, %{:message => :msg1})
+# Producer.publish(:MessageQueueRR, %{:message => :msg1})
 
 # Consumer.unsubscribe(:Consumer1, :MessageQueuePS)

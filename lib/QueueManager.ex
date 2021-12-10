@@ -22,22 +22,25 @@ defmodule QueueManager do
 
   def handle_call({:create, queue_id, type}, _from, state) do
     # TODO: Vincular con Colas
-    # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
-    {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
-    Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
-    # Logger.info("handle_call :create ")
-    # {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
-    {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
-    Logger.info("handle_call :create")
+    cond do
+      !Enum.member?(QueuesRegistry.list(), QueuesRegistry.get_pid(queue_id)) ->
+        # Logger.info("handle_call :create #{__MODULE__} #{inspect queue_id} #{inspect type} #{inspect state}")
+        {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
+        Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
+        # Logger.info("handle_call :create ")
+        # {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, type, pidAgent, [])
+        {:ok, pidQueue} = MessageQueueDynamicSupervisor.start_child(queue_id, pidAgent)
+        Logger.info("handle_call :create")
 
-    destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
+        destination_node = ManagerNodesAgent.assign_queue_to_lazier_node(queue_id)
 
-    Enum.each(Node.list(), fn node ->
-      :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
-    end)
-
-    # {:reply, {pidQueue, pidAgent}, state}
-    {:reply, {pidQueue, pidAgent}, state}
+        Enum.each(Node.list(), fn node ->
+          :rpc.call(node, QueueManager, :create, [queue_id, type, destination_node, :replicated])
+        end)
+        {:reply, {pidQueue, pidAgent}, state}
+      true ->
+      {:reply, {}, state}
+    end
   end
 
   def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do

@@ -35,7 +35,7 @@ defmodule QueueManager do
   ############################# Get queues info from QueuesRegistry END #############################
 
   def handle_call({:create, queue_id, type}, _from, state) do
-    Logger.info("handle_call :create_queue_in_system")
+   # Logger.info("handle_call :create_queue_in_system")
     {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
     Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
     Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
@@ -51,7 +51,7 @@ defmodule QueueManager do
 
   def handle_call({:create, queue_id, type, destination_node, :replicated}, _from, state) do
     # TODO: Vincular con Colas
-    Logger.info("handle_call :create_queue_in_system")
+    #Logger.info("handle_call :create_queue_in_system")
     {:ok, pidAgent} = MessageQueueAgentDynamicSupervisor.start_child(queue_id, type, [])
     Agent.update(pidAgent, fn state -> Map.put(state, :agentPid, pidAgent) end)
     Agent.update(pidAgent, fn state -> Map.put(state, :messages, :queue.new()) end)
@@ -70,7 +70,7 @@ defmodule QueueManager do
   ############################# Subscribe / Unsubscribe consumers INI #############################
 
   def handle_cast({:subscribe, consumer_pid, queue_id, mode}, state) do
-    Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}")
+   # Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id}")
     # Subscribe consumer
     MessageQueue.subscribe_consumer(queue_id, consumer_pid, mode)
 
@@ -79,7 +79,7 @@ defmodule QueueManager do
   end
 
   def handle_cast({:subscribe, consumer_pid, queue_id, mode, :replicated}, state) do
-    Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id} [replicated]")
+  #  Logger.info("QM: Register #{inspect(consumer_pid)} to #{queue_id} [replicated]")
     MessageQueue.subscribe_consumer(queue_id, consumer_pid, mode)
 
     {:noreply, state}
@@ -95,7 +95,7 @@ defmodule QueueManager do
   end
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id}, state) do
-    Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
+   # Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id}")
 
     # Unsubscribe consumer from Registry
     MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
@@ -115,7 +115,7 @@ defmodule QueueManager do
   end
 
   def handle_cast({:unsubscribe, consumer_pid, queue_id, :replicated}, state) do
-    Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id} [replicated]")
+    #Logger.info("QM: Unsubscribing #{inspect(consumer_pid)} from #{queue_id} [replicated]")
     MessageQueue.unsubscribe_consumer(queue_id, consumer_pid)
     {:noreply, state}
   end
@@ -142,7 +142,7 @@ defmodule QueueManager do
   end
 
   def handle_info({:nodedown, node}, state) do
-    Logger.info("Node #{node} is down")
+   # Logger.info("Node #{node} is down")
     lazier_node = ManagerNodesAgent.get_lazier_node()
     second_lazier_node = ManagerNodesAgent.get_second_lazier_node()
 
@@ -155,7 +155,7 @@ defmodule QueueManager do
   end
 
   def handle_info({:nodeup, node}, state) do
-    Logger.info("Node #{node} is up")
+   # Logger.info("Node #{node} is up")
     ManagerNodesAgent.create_node(node)
     # sync_queues(node)
     {:noreply, state}
@@ -166,12 +166,12 @@ defmodule QueueManager do
   # Sincronizar colas ya creadas entre nodos (debería poder moverlo al init)
   def sync_queues do
     if Node.list != [] do
-      Logger.info "sync queues ..."
+     # Logger.info "sync queues ..."
 
       # 1 - Obtengo los queue_names de algun nodo remoto
       selected_node = Enum.random(Node.list)
       remotes_queues = GenServer.call({QueueManager, selected_node}, :get_queues_from_another_node)
-      Logger.info "queues from #{inspect selected_node} = #{inspect remotes_queues}"
+     # Logger.info "queues from #{inspect selected_node} = #{inspect remotes_queues}"
       
       # 2 - Creo las colas en el nodo local
       Enum.each(remotes_queues, fn remote_queue -> 
@@ -181,11 +181,11 @@ defmodule QueueManager do
   end
 
   def handle_call(:get_queues_from_another_node, _from, state) do
-    Logger.info "Node A recibe mensaje para sincronizar colas #{inspect QueuesRegistry.queue_names()}"
+   # Logger.info "Node A recibe mensaje para sincronizar colas #{inspect QueuesRegistry.queue_names()}"
     queues_state = Enum.map(QueuesRegistry.queue_names(), fn queue_name -> 
       %{agentPid: agent_pid, messages: messages, queueName: name, type: type} = MessageQueueAgent.get_queue_state(queue_name)
-      Logger.info "Queue type #{inspect type}"
-      Logger.info "Queue messages #{inspect messages}"
+      #Logger.info "Queue type #{inspect type}"
+     # Logger.info "Queue messages #{inspect messages}"
       %{agent_pid: agent_pid, messages: messages, name: name, type: type}
     end)
     {:reply, queues_state, state}
@@ -193,7 +193,7 @@ defmodule QueueManager do
 
   def handle_cast({:replicate_queue_from_remote, remote_queue}, state) do
     # Borrar
-    Logger.info("Remote queue messages #{inspect remote_queue.messages}")
+    #Logger.info("Remote queue messages #{inspect remote_queue.messages}")
 
     {:ok, pid_agent} = MessageQueueAgentDynamicSupervisor.start_child(remote_queue.name, remote_queue.type, [])
     Agent.update(pid_agent, fn state -> Map.put(state, :agentPid, pid_agent) end)
@@ -227,12 +227,12 @@ defmodule QueueManager do
   end
 
   def subscribe(consumer_pid, queue_id, mode) do
-    Logger.info("QueueManager subscribe #{inspect(consumer_pid)} to #{queue_id} as #{mode}")
+    #Logger.info("QueueManager subscribe #{inspect(consumer_pid)} to #{queue_id} as #{mode}")
     GenServer.cast(QueueManager, {:subscribe, consumer_pid, queue_id, mode})
   end
 
   def unsubscribe(consumer_pid, queue_id) do
-    Logger.info("QueueManager unsubscribe #{inspect(consumer_pid)} from #{queue_id}")
+    #Logger.info("QueueManager unsubscribe #{inspect(consumer_pid)} from #{queue_id}")
     GenServer.cast(QueueManager, {:unsubscribe, consumer_pid, queue_id})
   end
 

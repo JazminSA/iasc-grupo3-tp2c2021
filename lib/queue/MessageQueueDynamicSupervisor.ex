@@ -3,7 +3,7 @@ defmodule MessageQueueDynamicSupervisor do
     require Logger
 
     def start_link(init_arg) do
-      Logger.info("start_link supervisor #{init_arg}")
+      # Logger.info("start_link supervisor #{init_arg}")
 
       DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
     end
@@ -14,7 +14,7 @@ defmodule MessageQueueDynamicSupervisor do
 
     # def start_child(name, type, agentPid, state) do
     def start_child(name, agentPid) do
-      Logger.info("start_child supervisor pidAgent: #{inspect agentPid} nombre: #{inspect name}")
+      # Logger.info("start_child supervisor pidAgent: #{inspect agentPid} nombre: #{inspect name}")
       # {:ok, pid} =  MessageQueueDynamicSupervisor.start_child(:MessageQueue1, :pub_sub, [])
       # spec = {MessageQueue, {name, %{queueName: name, type: type, agentPid: agentPid}} }
       spec = {MessageQueue, {name, agentPid} }

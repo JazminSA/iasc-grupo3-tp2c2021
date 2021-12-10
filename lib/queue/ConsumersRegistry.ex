@@ -29,7 +29,7 @@ defmodule ConsumersRegistry do
     # end
 
     def get_queue_consumers(queue) do
-      Logger.info("Registry: get_queue_consumers to #{inspect queue}")
+      # Logger.info("Registry: get_queue_consumers to #{inspect queue}")
       Enum.map(Registry.lookup(__MODULE__, queue), fn {_pid, value} -> value end)
     end
   end

@@ -23,7 +23,7 @@ defmodule Producer do
       # case queue_id do
       #   :queue_not_found -> :queue_not_found
       #   _ ->
-          Logger.info "Producer publish msg on demand to queue #{queue_name}"
+          # Logger.info "Producer publish msg on demand to queue #{queue_name}"
           GenServer.cast(queue_id, {:receive_message, message})
       # end
     end

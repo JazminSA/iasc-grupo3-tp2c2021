@@ -16,7 +16,7 @@ defmodule ConsumersSubscriptionsRegistry do
     end
 
     def init(_state) do
-      Logger.info("ConsumersSubscriptionsRegistry init")
+      # Logger.info("ConsumersSubscriptionsRegistry init")
     end
 
     ##################### Consumer methods
@@ -27,12 +27,12 @@ defmodule ConsumersSubscriptionsRegistry do
     end
 
     def get_consumer_subscriptions(consumer, other_node) do
-      Logger.info("ConsumersSubscriptionsRegistry get_consumer_subscriptions #{consumer}")
+      # Logger.info("ConsumersSubscriptionsRegistry get_consumer_subscriptions #{consumer}")
       :rpc.call(other_node, __MODULE__, :get_consumer_subscriptions, [consumer])
     end
 
     def get_consumer_subscriptions(consumer) do
-      Logger.info("ConsumersSubscriptionsRegistry get_consumer_subscriptions #{consumer}")
+      # Logger.info("ConsumersSubscriptionsRegistry get_consumer_subscriptions #{consumer}")
       #Enum.map(Registry.lookup(__MODULE__, consumer), fn {_pid, value} -> value end)
       Enum.map(Registry.match(__MODULE__, consumer, {:_, :_, :_}), fn {_pid, value} -> value end)
     end

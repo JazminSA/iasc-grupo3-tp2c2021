@@ -19,10 +19,10 @@ defmodule Consumer do
 
       cond do
         replicated == true ->
-          Logger.info("Consumer #{name} [replicated] initialize in #{Node.self}")
+          # Logger.info("Consumer #{name} [replicated] initialize in #{Node.self}")
         true ->
           subscriptions = get_consumer_subscriptions(Node.list, name)
-          Logger.info("Consumer #{name} initialize in #{Node.self} with subscriptions: #{inspect subscriptions}")
+          # Logger.info("Consumer #{name} initialize in #{Node.self} with subscriptions: #{inspect subscriptions}")
           restore_subscriptions(subscriptions, name)
       end
       {:ok, state}
@@ -31,7 +31,7 @@ defmodule Consumer do
     ##################### Restoring subscriptions on reinitialize INI #####################
 
     defp get_consumer_subscriptions([], name) do
-      Logger.info("Consumer #{name} havent recovered subscriptions")
+      # Logger.info("Consumer #{name} havent recovered subscriptions")
       []
     end
     defp get_consumer_subscriptions([node|nodes], name) do
@@ -39,7 +39,7 @@ defmodule Consumer do
     end
 
     def handle_cast({:subscribe, name, queue, mode, subscribed_at, :restored}, state) do
-      Logger.info("Consumer #{name} restoring subscription to #{queue} with #{mode} in #{Node.self} at #{subscribed_at}")
+      # Logger.info("Consumer #{name} restoring subscription to #{queue} with #{mode} in #{Node.self} at #{subscribed_at}")
       QueueManager.subscribe(self(), queue, mode)
       register_subscribe(name, queue, mode, subscribed_at)
       {:noreply, state}
@@ -53,7 +53,7 @@ defmodule Consumer do
       # Logger.info("Consumer #{name} with no more subscriptions")
     end
     defp restore_subscriptions([subscription | subscriptions], name) do
-      Logger.info("Consumer #{name} restoring subscription #{inspect subscription}")
+      # Logger.info("Consumer #{name} restoring subscription #{inspect subscription}")
       {queue, mode, subscribed_at} = subscription
       Consumer.subscribe(name, queue, mode, subscribed_at, :restored)
       restore_subscriptions(subscriptions, name, :next)
@@ -64,12 +64,12 @@ defmodule Consumer do
     ##################### Creating, registering and replicating consumer INI #####################
 
     def handle_cast({:create, name}, state) do
-      Logger.info("Consumer #{name} created #{Node.self}")
+      # Logger.info("Consumer #{name} created #{Node.self}")
       replicate_create(Node.list, name)
       {:noreply, state}
     end
     def handle_cast({:create, name, :replicated}, state) do
-      Logger.info("Consumer #{name} replicated in #{Node.self}")
+      # Logger.info("Consumer #{name} replicated in #{Node.self}")
       register_create(name)
       {:noreply, state}
     end

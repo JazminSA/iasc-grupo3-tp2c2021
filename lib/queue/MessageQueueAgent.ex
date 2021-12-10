@@ -3,10 +3,10 @@ defmodule MessageQueueAgent do
   require Logger
 
   def start_link(name, state) do
-    Logger.info("MessageQueueAgent start_link MessageQueueAgent #{inspect state}")
+    #Logger.info("MessageQueueAgent start_link MessageQueueAgent #{inspect state}")
 
     if(Enum.member?(QueuesRegistry.list, QueuesRegistry.get_pid(name))) do
-      Logger.info("entro en if")
+      #Logger.info("entro en if")
       GenServer.call(QueuesRegistry.get_pid(name), {:pause_queue})
       queue_state = GenServer.call(QueuesRegistry.get_pid(name), :get)
       {:ok, pidAgent} = Agent.start_link(fn -> queue_state end, name: process_name(name))
@@ -17,7 +17,7 @@ defmodule MessageQueueAgent do
       GenServer.call(QueuesRegistry.get_pid(name), {:unpause_queue})
       {:ok, pidAgent}
     else
-      Logger.info("entro en else")
+      #Logger.info("entro en else")
       Agent.start_link(fn -> state end, name: process_name(name))
     end
     # Logger.info("start_link MessageQueueAgent #{inspect state}")

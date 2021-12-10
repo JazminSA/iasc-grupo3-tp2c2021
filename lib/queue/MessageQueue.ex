@@ -49,7 +49,7 @@ defmodule MessageQueue do
     #       Logger.info("MessageQueue #{name} initialize in #{Node.self} with consumer subscriptions: #{inspect subscriptions}")
     #       restore_subscriptions(subscriptions, name)
     #   end
-      
+
     # Logger.info("Queue final state: #{inspect(new_state)}")
     GenServer.cast(self(), :dispatch_messages)
     {:ok, new_state}
@@ -97,10 +97,17 @@ defmodule MessageQueue do
   end
 
   def handle_cast({:receive_message, message}, %{messages: messages} = state) do
-    Logger.info("MessageQueue #{state.queueName} receive_message #{inspect message} in #{Node.self}")
-    new_state = queue_add_message(message, state)
-    Logger.info("MessageQueue #{state.queueName} receive_message after add #{inspect new_state}")
-    {:noreply, new_state}
+    limit = Application.fetch_env!(:message_queue, :queue_limit)
+    queue_size = :queue.len(messages)
+    if queue_size < limit do
+      new_state = queue_add_message(message, state)
+      {:noreply, new_state}
+    else
+      Logger.info("Queue reached messages limit")
+      {:noreply, state}
+    end
+    # Logger.info("MessageQueue #{state.queueName} receive_message #{inspect message} in #{Node.self}")
+    # Logger.info("MessageQueue #{state.queueName} receive_message after add #{inspect new_state}")
   end
 
   ############################# Subscribe / Unsubscribe consumers INI #############################
@@ -205,7 +212,7 @@ defmodule MessageQueue do
   def handle_cast(
         {:update_queue, :push, message},
         %{queueName: qname, messages: queue, index: index} = state
-      ) 
+      )
       do
       Logger.info("update_queue push  RR indice #{index}")
 
@@ -237,14 +244,14 @@ defmodule MessageQueue do
 
     agent_get_state(state)
   end
-  
+
   def handle_cast({:update_queue, :push, message}, %{messages: queue} = state) do
     Logger.info("update_queue push  PS")
     queue = :queue.in(message, queue)
     new_state = agent_update_element(state, :messages, queue)
     {:noreply, new_state}
   end
-  
+
   def handle_cast({:update_queue, :pop, message}, %{messages: queue} = state) do
     Logger.info("update_queue pop  PS ")
     new_state = queue_delete_message(state, message)

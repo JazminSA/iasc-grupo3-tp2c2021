@@ -189,7 +189,7 @@ defmodule Consumer do
       [{_, name} | _] = Process.info(pid);
       Logger.info("-------------> Consumer #{name} #{inspect pid} - #{mode} from #{queue} in node #{Node.self}", ansi_color: :green)
       Logger.info("Receiving message ...", ansi_color: :green)
-      Logger.info("#{inspect message}", ansi_color: :green)
+      Logger.info("#{inspect message}", ansi_color: :yellow)
       cond do
         mode == :transactional -> acknowledge(name, queue, message, state)
         mode == :not_transactional ->  {:noreply, state}

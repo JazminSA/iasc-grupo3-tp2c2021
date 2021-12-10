@@ -46,11 +46,11 @@ defmodule Consumer do
     end
 
     defp restore_subscriptions([], name) do
-      Logger.info("Consumer #{name} with no subscriptions to restore")
+      # Logger.info("Consumer #{name} with no subscriptions to restore")
       # register_create(name)
     end
     defp restore_subscriptions([], name, :next) do
-      Logger.info("Consumer #{name} with no more subscriptions")
+      # Logger.info("Consumer #{name} with no more subscriptions")
     end
     defp restore_subscriptions([subscription | subscriptions], name) do
       Logger.info("Consumer #{name} restoring subscription #{inspect subscription}")
@@ -75,18 +75,18 @@ defmodule Consumer do
     end
 
     defp replicate_create([], name) do
-      Logger.info("Consumer replicate_create #{name} completed")
+      # Logger.info("Consumer replicate_create #{name} completed")
       register_create(name)
       :ok
     end
     defp replicate_create([node | nodes], name) do
-      Logger.info("Consumer replicate_create #{name} in #{inspect node}")
+      # Logger.info("Consumer replicate_create #{name} in #{inspect node}")
       :rpc.call(node, __MODULE__, :create, [name, :replicated])
       replicate_create(nodes, name)
     end
 
     defp register_create(name) do
-      Logger.info("ConsumersSubscriptionsRegistry create #{name} in #{Node.self}")
+      # Logger.info("Consumer create #{name} in #{Node.self}")
       created_at = :os.system_time(:milli_seconds)
       tuple = {}
       tuple = Tuple.append(tuple, created_at)
@@ -100,12 +100,19 @@ defmodule Consumer do
     ##################### Subscribing consumer to queue and update registry INI #####################
 
     def handle_cast({:subscribe, name, queue_id, mode}, state) do
-      Logger.info("Consumer #{name} subscribing to #{queue_id} with #{mode} in #{Node.self}")
-      QueueManager.subscribe(self(), queue_id, mode)
-      suscribed_at = :os.system_time(:milli_seconds)
-      register_subscribe(name, queue_id, mode, suscribed_at)
-      replicate_subscribe(Node.list, name, queue_id, mode, suscribed_at)
-      {:noreply, state}
+      # queue_id = QueueManager.get_queue(name)
+      # case queue_id do
+      #   :queue_not_found -> 
+      #     Logger.info("#{queue_id}")
+      #     {:noreply, state}
+      #   _ ->
+          Logger.info("Consumer #{name} subscribing to #{queue_id} with #{mode} in #{Node.self}")
+          QueueManager.subscribe(self(), queue_id, mode)
+          suscribed_at = :os.system_time(:milli_seconds)
+          register_subscribe(name, queue_id, mode, suscribed_at)
+          replicate_subscribe(Node.list, name, queue_id, mode, suscribed_at)
+          {:noreply, state}
+      # end
     end
 
     def handle_cast({:subscribe, name, queue_id, mode, suscribed_at, :replicated}, state) do
@@ -115,11 +122,11 @@ defmodule Consumer do
     end
 
     defp replicate_subscribe([], consumer, queue, mode, suscribed_at) do
-      Logger.info("Consumer replicate_subscribe #{consumer} #{queue} #{mode} completed")
+      # Logger.info("Consumer replicate_subscribe #{consumer} #{queue} #{mode} in #{Node.self} completed")
       :ok
     end
     defp replicate_subscribe([node | nodes], consumer, queue, mode, suscribed_at) do
-      Logger.info("Consumer replicate_subscribe #{consumer} #{queue} #{mode} in #{inspect node}")
+      # Logger.info("Consumer replicate_subscribe #{consumer} #{queue} #{mode} in #{inspect node}")
       :rpc.call(node, __MODULE__, :subscribe, [consumer, queue, mode, suscribed_at, :replicated])
       replicate_subscribe(nodes, consumer, queue, mode, suscribed_at)
     end
@@ -139,11 +146,18 @@ defmodule Consumer do
     ##################### Unsubscribing consumer to queue and update registry INI #####################
 
     def handle_cast({:unsubscribe, name, queue_id}, state) do
-      Logger.info("Consumer unsubscribing from #{queue_id} in #{Node.self}")
-      QueueManager.unsubscribe(self(), queue_id)
-      unregister_subscribe(name, queue_id)
-      replicate_unsubscribe(Node.list, name, queue_id)
-      {:noreply, state}
+      # queue_id = QueueManager.get_queue(name)
+      # case queue_id do
+      #   :queue_not_found -> 
+      #     Logger.info("#{queue_id}")
+      #     {:noreply, state}
+      #   _ ->
+          Logger.info("Consumer unsubscribing from #{queue_id} in #{Node.self}")
+          QueueManager.unsubscribe(self(), queue_id)
+          unregister_subscribe(name, queue_id)
+          replicate_unsubscribe(Node.list, name, queue_id)
+          {:noreply, state}
+      # end
     end
 
     def handle_cast({:unsubscribe, name, queue_id, :replicated}, state) do
@@ -163,7 +177,7 @@ defmodule Consumer do
     end
 
     defp unregister_subscribe(consumer, queue) do
-      Logger.info("Consumer: subscribing #{consumer} to #{queue} in #{Node.self}")
+      Logger.info("Consumer: unsubscribing #{consumer} to #{queue} in #{Node.self}")
       Registry.unregister_match(ConsumersSubscriptionsRegistry, consumer, {queue,:_, :_})
     end
 
@@ -173,7 +187,7 @@ defmodule Consumer do
 
     def handle_cast({:consume, pid, queue, message, mode}, state) do
       [{_, name} | _] = Process.info(pid);
-      Logger.info("Consumer #{name} #{inspect pid} - #{mode} from #{queue}")
+      Logger.info("-------------> Consumer #{name} #{inspect pid} - #{mode} from #{queue} in node #{Node.self}")
       Logger.info("Receiving message ...")
       Logger.info("#{inspect message}", ansi_color: :green)
       cond do
@@ -183,7 +197,7 @@ defmodule Consumer do
     end
 
     defp acknowledge(name, queue, message, state) do
-      Logger.info("Consumer #{name} acknowledge message to #{queue}")
+      Logger.info("-------------> Consumer #{name} acknowledge message to #{queue} from node #{Node.self}")
       #MessageQueue.acknowledge_message(queue, name, message)
       {:noreply, state}
     end

@@ -4,9 +4,13 @@ defmodule MessageQueueAgent do
 
   def start_link(name, state) do
     # Logger.info("start_link MessageQueueAgent #{inspect self()}")
-    Agent.start_link(fn -> state end, name: String.to_atom(Atom.to_string(name) <> "Agent"))
+    Agent.start_link(fn -> state end, name: process_name(name))
     # result = GenServer.start_link(__MODULE__, state, name: process_name(name))
     # result
+  end
+
+  defp process_name(queue) do
+    String.to_atom(Atom.to_string(queue) <> "Agent")
   end
 
   def child_spec({name, state}) do
@@ -20,6 +24,11 @@ defmodule MessageQueueAgent do
 
   def update(new_state) do
     Agent.update(self(), fn _ -> new_state end)
+  end
+
+  def get_queue_state(queue_name) do
+    agent = Process.whereis(process_name(queue_name))
+    Agent.get(agent, fn state -> state end)
   end
 
 #   def update_and_get_state(new_queue_ids, new_mode) do
